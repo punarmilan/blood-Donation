@@ -38,7 +38,7 @@ const OrganizerEnquiry = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await axios.post("http://localhost:5000/api/organizer-enquiry/submit", form);
+      await axios.post("/api/organizer-enquiry/submit", form);
       setSuccessMsg("✅ Enquiry submitted successfully! Response within 24-48 hours.");
       setForm({
         organizerName: "", phone: "", email: "",

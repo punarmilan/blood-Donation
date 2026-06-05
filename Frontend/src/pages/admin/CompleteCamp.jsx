@@ -19,7 +19,7 @@ const CompleteCamp = () => {
     const fetchCamp = async () => {
       try {
         const token = localStorage.getItem('adminToken');
-        const res = await axios.get(`http://localhost:5000/api/camps/${campId}`, {
+        const res = await axios.get(`/api/camps/${campId}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setCamp(res.data);
@@ -54,7 +54,7 @@ const CompleteCamp = () => {
 
       // Adjust route if necessary: we built /api/camps/:campId/complete 
       // where :campId could be the generated ID like RDC... or _id
-      await axios.patch(`http://localhost:5000/api/camps/${camp.campId || camp._id}/complete`, formData, {
+      await axios.patch(`/api/camps/${camp.campId || camp._id}/complete`, formData, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'

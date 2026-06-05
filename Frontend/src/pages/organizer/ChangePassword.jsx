@@ -19,7 +19,7 @@ const ChangePassword = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('organizer-token') || localStorage.getItem('admin-token') || localStorage.getItem('token');
-      await axios.post('http://localhost:5000/api/auth/change-password', {
+      await axios.post('/api/auth/change-password', {
         currentPassword, newPassword
       }, {
         headers: { Authorization: `Bearer ${token}` }

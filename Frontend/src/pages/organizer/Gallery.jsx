@@ -141,7 +141,7 @@ const Gallery = () => {
                 <div key={i} className="group relative aspect-square rounded-2xl overflow-hidden bg-gray-100 border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300">
                   {/* Image */}
                   <img 
-                    src={`http://localhost:5000${photo.url}`} 
+                    src={photo.url} 
                     alt="Camp Memory" 
                     className="w-full h-full object-cover group-hover:scale-105 transition duration-500 ease-out" 
                   />
@@ -157,7 +157,7 @@ const Gallery = () => {
                   
                   {/* Download icon */}
                   <a 
-                    href={`http://localhost:5000${photo.url}`} 
+                    href={photo.url} 
                     download
                     target="_blank" 
                     rel="noreferrer"

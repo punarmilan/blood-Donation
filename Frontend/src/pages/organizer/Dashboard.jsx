@@ -222,7 +222,7 @@ const OrganizerDashboard = () => {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {photos.map((photo, i) => (
               <div key={i} className="relative group rounded-xl overflow-hidden shadow-sm aspect-square bg-gray-100 border border-gray-200">
-                <img src={`http://localhost:5000${photo.url}`} alt="Camp" className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
+                <img src={photo.url} alt="Camp" className="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition duration-300 flex items-end p-4">
                   <p className="text-white text-sm font-medium leading-tight">{photo.campTitle}</p>
                 </div>
