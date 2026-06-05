@@ -39,8 +39,8 @@ app.use(
       const allowed = [
         "http://localhost:5173",
         "http://localhost:3000",
-        "https://raktdaan.online",
-        "https://www.raktdaan.online",
+        "https://blooddonation.store",
+        "https://www.blooddonation.store",
       ];
 
       // allow requests with no origin (like Postman)
