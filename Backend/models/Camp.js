@@ -22,6 +22,11 @@ const campSchema = new mongoose.Schema({
   totalUnitsCollected: { type: Number, default: 0 },
   photos: [{ type: String }],
   completedAt: { type: Date },
+  location: { type: String },
+  hospitalName: { type: String },
+  proName: { type: String },
+  organizerName: { type: String },
+  organizerContact: { type: String },
 }, { timestamps: true });
 
 export default mongoose.model("Camp", campSchema);

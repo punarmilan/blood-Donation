@@ -1249,7 +1249,7 @@ export default function DarkInfoSection() {
                 <Link to="/register" className="banner-btn btn-primary">
                   Donate Blood <span className="btn-arrow">→</span>
                 </Link>
-                <Link to="/services" className="banner-btn btn-secondary">
+                <Link to="/blood-request" className="banner-btn btn-secondary">
                   Request Blood <span className="btn-arrow">→</span>
                 </Link>
               </div>

@@ -4,7 +4,7 @@ import logo from "../assets/logo.png";
 
 const Footer = () => {
   return (
-    <footer className="bg-[#0f172a] text-white pt-14 pb-0">
+    <footer className="bg-black text-white pt-14 pb-0 border-t border-[#e11d48]/20 relative z-10 shadow-[0_-10px_30px_rgba(225,29,72,0.05)]">
       <div className="max-w-[1400px] mx-auto px-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 pb-10">
 
@@ -93,7 +93,7 @@ const Footer = () => {
       </div>
 
       {/* Bottom Bar */}
-      <div className="border-t border-white/10 py-4 text-center text-slate-500 text-sm">
+      <div className="border-t border-white/5 py-4 text-center text-slate-600 text-sm">
         © 2025 Raktdaan. All rights reserved.
       </div>
     </footer>

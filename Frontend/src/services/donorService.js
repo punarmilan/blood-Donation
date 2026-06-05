@@ -1,6 +1,10 @@
 import api from "./api";
 
 const donorService = {
+  getAllDonors: async () => {
+    const res = await api.get("/donors");
+    return res.data;
+  },
   getDonorsByCamp: async (campId) => {
     const res = await api.get(`/donors/camp/${campId}`);
     return res.data;

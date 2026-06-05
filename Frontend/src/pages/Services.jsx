@@ -1,5 +1,11 @@
 import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import Lenis from "lenis";
+
+gsap.registerPlugin(ScrollTrigger);
+
 import {
   ShieldCheck,
   Zap,
@@ -7,24 +13,62 @@ import {
   Calendar,
   BarChart3,
   ArrowRight,
-  Heart
+  Heart,
+  Droplet
 } from "lucide-react";
 import servicesImg from "../assets/servicesimg1.png";
 import services2Img from "../assets/services2.png";
 
 const Services = () => {
   useEffect(() => {
-    // Scroll reveal animation initialization
-    const handleScroll = () => {
-      document.querySelectorAll(".animate-on-scroll").forEach((el) => {
-        if (el.getBoundingClientRect().top < window.innerHeight * 0.9) {
-          el.classList.add("visible");
+    // Initialize Lenis Smooth Scroll
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      direction: 'vertical',
+      gestureDirection: 'vertical',
+      smooth: true,
+      smoothTouch: false,
+      touchMultiplier: 2,
+    });
+
+    lenis.on('scroll', ScrollTrigger.update);
+
+    gsap.ticker.add((time) => {
+      lenis.raf(time * 1000);
+    });
+
+    gsap.ticker.lagSmoothing(0);
+
+    // GSAP ScrollReveal Animations for .animate-on-scroll elements
+    const elements = document.querySelectorAll(".animate-on-scroll");
+    elements.forEach((el) => {
+      // Remove the CSS transition so GSAP can take over smoothly
+      el.style.transition = 'none';
+      
+      gsap.fromTo(el, 
+        { 
+          y: 60, 
+          opacity: 0 
+        },
+        {
+          y: 0,
+          opacity: 1,
+          duration: 1,
+          ease: "power3.out",
+          scrollTrigger: {
+            trigger: el,
+            start: "top 85%",
+            toggleActions: "play none none reverse"
+          }
         }
-      });
+      );
+    });
+
+    return () => {
+      lenis.destroy();
+      ScrollTrigger.getAll().forEach(t => t.kill());
     };
-    window.addEventListener("scroll", handleScroll);
-    handleScroll();
-    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   return (
@@ -77,6 +121,95 @@ const Services = () => {
         }
         .service-card:hover {
           border: 1px solid rgba(220, 38, 38, 0.4) !important;
+        }
+        
+        .hex-card {
+          position: absolute;
+          width: 320px;
+          height: 100px;
+          background: #09090b;
+          clip-path: polygon(20px 0, calc(100% - 20px) 0, 100% 50%, calc(100% - 20px) 100%, 20px 100%, 0 50%);
+          border: 1px solid rgba(220, 38, 38, 0.2);
+          display: flex;
+          align-items: center;
+          padding: 0 35px;
+          gap: 15px;
+          z-index: 20;
+          transition: all 0.3s;
+          box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        .hex-card:hover {
+          background: #110d0e;
+          box-shadow: 0 0 30px rgba(220,38,38,0.2);
+        }
+        .hex-card::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          padding: 1px;
+          background: linear-gradient(90deg, rgba(220,38,38,0.4), transparent, rgba(220,38,38,0.4));
+          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          -webkit-mask-composite: xor;
+          mask-composite: exclude;
+          pointer-events: none;
+        }
+        
+        .hex-icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          background: #000;
+          border: 2px solid rgba(220,38,38,0.6);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 0 15px rgba(220,38,38,0.5);
+          flex-shrink: 0;
+        }
+
+        @keyframes dashRoll {
+          to {
+            stroke-dashoffset: -20;
+          }
+        }
+        .animate-dash-roll {
+          animation: dashRoll 1s linear infinite;
+        }
+
+        .support-card {
+          position: absolute;
+          width: 320px;
+          height: 100px;
+          background: #050505;
+          border-radius: 40px;
+          border: 1px solid rgba(220, 38, 38, 0.2);
+          display: flex;
+          align-items: center;
+          padding: 0 20px;
+          gap: 15px;
+          z-index: 20;
+          transition: all 0.3s;
+          box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 0 15px rgba(220,38,38,0.1);
+        }
+        .support-card:hover {
+          background: #0a0a0a;
+          box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 0 25px rgba(220,38,38,0.3);
+          border-color: rgba(220, 38, 38, 0.5);
+        }
+        .support-icon {
+          width: 50px;
+          height: 50px;
+          border-radius: 50%;
+          background: #000;
+          border: 2px solid rgba(220,38,38,0.6);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 0 15px rgba(220,38,38,0.6);
+          flex-shrink: 0;
+        }
+        .tube-glow {
+          filter: drop-shadow(0 0 8px rgba(220,38,38,0.8));
         }
       `}</style>
 
@@ -160,102 +293,192 @@ const Services = () => {
       </div>
 
       {/* Decorative Separator "What We Offer" */}
-      <div className="max-w-[1400px] mx-auto px-6 mt-20 mb-12 relative z-10 animate-on-scroll">
-        <div className="flex items-center justify-center gap-6">
-          <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent to-red-600/50"></div>
-          <h2 className="text-xl md:text-2xl font-bold tracking-wider text-gray-100 uppercase">
-            What We Offer
-          </h2>
-          <div className="h-[1px] flex-1 bg-gradient-to-l from-transparent to-red-600/50"></div>
-        </div>
+      <div className="max-w-[1400px] mx-auto px-6 mt-20 mb-10 relative z-10 animate-on-scroll text-center">
+        <p className="text-red-600 font-extrabold tracking-[0.2em] text-xs uppercase mb-2">OUR SERVICES</p>
+        <h2 className="text-3xl md:text-5xl font-black text-white mb-4">
+          WHAT WE <span className="text-red-600">OFFER</span>
+        </h2>
+        <p className="text-gray-400 text-sm max-w-xl mx-auto">
+          Comprehensive blood donation solutions to save lives and build a healthier community.
+        </p>
       </div>
 
-      <div className="max-w-[1400px] mx-auto px-6 relative z-10 mb-20">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-5 animate-on-scroll">
-          {/* Card 1: Find Blood */}
-          <div className="service-card bg-[#0b0c10] rounded-[20px] p-6 flex flex-col justify-between transition-all duration-300 group hover:-translate-y-1">
-            <div>
-              <div className="w-12 h-12 bg-gradient-to-br from-red-950/60 to-red-900/30 rounded-2xl flex items-center justify-center text-red-500 mb-5 shadow-[0_0_15px_rgba(220,38,38,0.15)] group-hover:shadow-[0_0_20px_rgba(220,38,38,0.3)] transition-all">
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
-                  <path d="M12 11v4M10 13h4" stroke="black" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-bold text-gray-100 mb-3 group-hover:text-red-500 transition-colors">Find Blood</h3>
-              <p className="text-gray-400 text-xs leading-relaxed mb-6">
-                Search available blood units by type and location instantly.
-              </p>
-            </div>
-            <Link to="/register" className="inline-flex items-center gap-2 text-xs font-bold text-red-500/90 group-hover:text-red-500 transition-colors py-2 px-4 border border-red-950 rounded-lg w-fit group-hover:border-red-600/40 hover:bg-red-950/25">
-              Explore <ArrowRight size={14} />
-            </Link>
+      {/* Desktop Radial Layout (Hidden on Mobile) */}
+      <div className="hidden lg:flex max-w-[1100px] mx-auto relative h-[650px] items-center justify-center z-10 animate-on-scroll">
+        
+        {/* Central Blood Drop */}
+        <div className="absolute z-20 flex items-center justify-center w-[240px] h-[240px] rounded-full border border-red-500/20 shadow-[0_0_60px_rgba(220,38,38,0.15)] bg-[#050505]">
+          <div className="w-[190px] h-[190px] rounded-full border-2 border-red-600/50 flex items-center justify-center shadow-[inset_0_0_50px_rgba(220,38,38,0.4)]">
+            <svg className="w-24 h-24 text-red-600 drop-shadow-[0_0_20px_rgba(220,38,38,0.9)]" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+            </svg>
           </div>
+        </div>
 
-          {/* Card 2: Request Blood */}
-          <div className="service-card bg-[#0b0c10] rounded-[20px] p-6 flex flex-col justify-between transition-all duration-300 group hover:-translate-y-1">
-            <div>
-              <div className="w-12 h-12 bg-gradient-to-br from-red-950/60 to-red-900/30 rounded-2xl flex items-center justify-center text-red-500 mb-5 shadow-[0_0_15px_rgba(220,38,38,0.15)] group-hover:shadow-[0_0_20px_rgba(220,38,38,0.3)] transition-all">
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
-                  <path d="M12 10v4M10 12h4" stroke="black" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-bold text-gray-100 mb-3 group-hover:text-red-500 transition-colors">Request Blood</h3>
-              <p className="text-gray-400 text-xs leading-relaxed mb-6">
-                Raise a blood request in seconds and get help from nearby donors.
-              </p>
-            </div>
-            <Link to="/register" className="inline-flex items-center gap-2 text-xs font-bold text-red-500/90 group-hover:text-red-500 transition-colors py-2 px-4 border border-red-950 rounded-lg w-fit group-hover:border-red-600/40 hover:bg-red-950/25">
-              Explore <ArrowRight size={14} />
-            </Link>
+        {/* SVG Connecting Lines */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none z-10" viewBox="0 0 1100 650">
+          <defs>
+            <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="rgba(220,38,38,1)" />
+              <stop offset="100%" stopColor="rgba(220,38,38,0)" />
+            </radialGradient>
+          </defs>
+          
+          {/* Top Left (01) -> Center */}
+          <path d="M 335 175 L 450 250" stroke="rgba(220,38,38,0.4)" strokeWidth="1.5" strokeDasharray="4 4" className="animate-dash-roll" fill="none" />
+          <circle cx="335" cy="175" r="4" fill="#dc2626" />
+          <circle cx="450" cy="250" r="4" fill="#dc2626" />
+          
+          {/* Bottom Left (03) -> Center */}
+          <path d="M 335 475 L 450 400" stroke="rgba(220,38,38,0.4)" strokeWidth="1.5" strokeDasharray="4 4" className="animate-dash-roll" fill="none" />
+          <circle cx="335" cy="475" r="4" fill="#dc2626" />
+          <circle cx="450" cy="400" r="4" fill="#dc2626" />
+
+          {/* Top Right (02) -> Center */}
+          <path d="M 765 175 L 650 250" stroke="rgba(220,38,38,0.4)" strokeWidth="1.5" strokeDasharray="4 4" className="animate-dash-roll" fill="none" />
+          <circle cx="765" cy="175" r="4" fill="#dc2626" />
+          <circle cx="650" cy="250" r="4" fill="#dc2626" />
+
+          {/* Bottom Right (04) -> Center */}
+          <path d="M 765 475 L 650 400" stroke="rgba(220,38,38,0.4)" strokeWidth="1.5" strokeDasharray="4 4" className="animate-dash-roll" fill="none" />
+          <circle cx="765" cy="475" r="4" fill="#dc2626" />
+          <circle cx="650" cy="400" r="4" fill="#dc2626" />
+
+          {/* Bottom Center (05) -> Center */}
+          <path d="M 550 550 L 550 455" stroke="rgba(220,38,38,0.4)" strokeWidth="1.5" strokeDasharray="4 4" className="animate-dash-roll" fill="none" />
+          <circle cx="550" cy="550" r="4" fill="#dc2626" />
+          <circle cx="550" cy="455" r="4" fill="#dc2626" />
+        </svg>
+
+        {/* 01 Find Blood (Top Left) */}
+        <div className="hex-card" style={{ top: '125px', left: '15px' }}>
+          <div className="hex-icon">
+            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" /><path d="M12 11v4M10 13h4" stroke="black" strokeWidth="2" strokeLinecap="round" /></svg>
           </div>
-
-          {/* Card 3: Camp Management */}
-          <div className="service-card bg-[#0b0c10] rounded-[20px] p-6 flex flex-col justify-between transition-all duration-300 group hover:-translate-y-1">
-            <div>
-              <div className="w-12 h-12 bg-gradient-to-br from-red-950/60 to-red-900/30 rounded-2xl flex items-center justify-center text-red-500 mb-5 shadow-[0_0_15px_rgba(220,38,38,0.15)] group-hover:shadow-[0_0_20px_rgba(220,38,38,0.3)] transition-all">
-                <Calendar size={22} />
-              </div>
-              <h3 className="text-lg font-bold text-gray-100 mb-3 group-hover:text-red-500 transition-colors">Camp Management</h3>
-              <p className="text-gray-400 text-xs leading-relaxed mb-6">
-                Organize and manage blood donation camps with ease.
-              </p>
+          <div className="text-left flex-1 border-l border-zinc-800 pl-4 py-1">
+            <div className="flex gap-2 items-center mb-1">
+              <span className="text-red-500 font-black text-lg">01</span>
+              <span className="text-white font-bold text-sm">Find Blood</span>
             </div>
-            <Link to="/organizer-enquiry" className="inline-flex items-center gap-2 text-xs font-bold text-red-500/90 group-hover:text-red-500 transition-colors py-2 px-4 border border-red-950 rounded-lg w-fit group-hover:border-red-600/40 hover:bg-red-950/25">
-              Explore <ArrowRight size={14} />
-            </Link>
+            <p className="text-[10px] text-gray-400 leading-tight">Search available blood units by type and location instantly.</p>
           </div>
+        </div>
 
-          {/* Card 4: Donor Management */}
-          <div className="service-card bg-[#0b0c10] rounded-[20px] p-6 flex flex-col justify-between transition-all duration-300 group hover:-translate-y-1">
-            <div>
-              <div className="w-12 h-12 bg-gradient-to-br from-red-950/60 to-red-900/30 rounded-2xl flex items-center justify-center text-red-500 mb-5 shadow-[0_0_15px_rgba(220,38,38,0.15)] group-hover:shadow-[0_0_20px_rgba(220,38,38,0.3)] transition-all">
-                <Users size={22} />
-              </div>
-              <h3 className="text-lg font-bold text-gray-100 mb-3 group-hover:text-red-500 transition-colors">Donor Management</h3>
-              <p className="text-gray-400 text-xs leading-relaxed mb-6">
-                Maintain donor records and build a strong donor network.
-              </p>
-            </div>
-            <Link to="/register" className="inline-flex items-center gap-2 text-xs font-bold text-red-500/90 group-hover:text-red-500 transition-colors py-2 px-4 border border-red-950 rounded-lg w-fit group-hover:border-red-600/40 hover:bg-red-950/25">
-              Explore <ArrowRight size={14} />
-            </Link>
+        {/* 02 Request Blood (Top Right) */}
+        <div className="hex-card" style={{ top: '125px', right: '15px', flexDirection: 'row-reverse' }}>
+          <div className="hex-icon">
+            <Calendar className="w-5 h-5 text-white" />
           </div>
-
-          {/* Card 5: Reports & Analytics */}
-          <div className="service-card bg-[#0b0c10] rounded-[20px] p-6 flex flex-col justify-between transition-all duration-300 group hover:-translate-y-1">
-            <div>
-              <div className="w-12 h-12 bg-gradient-to-br from-red-950/60 to-red-900/30 rounded-2xl flex items-center justify-center text-red-500 mb-5 shadow-[0_0_15px_rgba(220,38,38,0.15)] group-hover:shadow-[0_0_20px_rgba(220,38,38,0.3)] transition-all">
-                <BarChart3 size={22} />
-              </div>
-              <h3 className="text-lg font-bold text-gray-100 mb-3 group-hover:text-red-500 transition-colors">Reports & Analytics</h3>
-              <p className="text-gray-400 text-xs leading-relaxed mb-6">
-                Get real-time insights and reports to track donations and impact.
-              </p>
+          <div className="text-right flex-1 border-r border-zinc-800 pr-4 py-1">
+            <div className="flex justify-end gap-2 items-center mb-1">
+              <span className="text-white font-bold text-sm">Request Blood</span>
+              <span className="text-red-500 font-black text-lg">02</span>
             </div>
-            <Link to="/" className="inline-flex items-center gap-2 text-xs font-bold text-red-500/90 group-hover:text-red-500 transition-colors py-2 px-4 border border-red-950 rounded-lg w-fit group-hover:border-red-600/40 hover:bg-red-950/25">
-              Explore <ArrowRight size={14} />
-            </Link>
+            <p className="text-[10px] text-gray-400 leading-tight">Raise a blood request in seconds and get help.</p>
+          </div>
+        </div>
+
+        {/* 03 Camp Management (Bottom Left) */}
+        <div className="hex-card" style={{ top: '425px', left: '15px' }}>
+          <div className="hex-icon">
+            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+          </div>
+          <div className="text-left flex-1 border-l border-zinc-800 pl-4 py-1">
+            <div className="flex gap-2 items-center mb-1">
+              <span className="text-red-500 font-black text-lg">03</span>
+              <span className="text-white font-bold text-sm">Camp Management</span>
+            </div>
+            <p className="text-[10px] text-gray-400 leading-tight">Organize and manage blood donation camps with ease.</p>
+          </div>
+        </div>
+
+        {/* 04 Donor Management (Bottom Right) */}
+        <div className="hex-card" style={{ top: '425px', right: '15px', flexDirection: 'row-reverse' }}>
+          <div className="hex-icon">
+            <Users className="w-5 h-5 text-white" />
+          </div>
+          <div className="text-right flex-1 border-r border-zinc-800 pr-4 py-1">
+            <div className="flex justify-end gap-2 items-center mb-1">
+              <span className="text-white font-bold text-sm">Donor Management</span>
+              <span className="text-red-500 font-black text-lg">04</span>
+            </div>
+            <p className="text-[10px] text-gray-400 leading-tight">Maintain donor records and build a strong network.</p>
+          </div>
+        </div>
+
+        {/* 05 Reports & Analytics (Bottom Center) */}
+        <div className="hex-card" style={{ top: '550px', left: '50%', transform: 'translateX(-50%)' }}>
+          <div className="hex-icon">
+            <BarChart3 className="w-5 h-5 text-white" />
+          </div>
+          <div className="text-left flex-1 border-l border-zinc-800 pl-4 py-1">
+            <div className="flex gap-2 items-center mb-1">
+              <span className="text-red-500 font-black text-lg">05</span>
+              <span className="text-white font-bold text-sm">Reports & Analytics</span>
+            </div>
+            <p className="text-[10px] text-gray-400 leading-tight">Get real-time insights and reports to track impact.</p>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Mobile Stacked Layout (Hidden on Desktop) */}
+      <div className="lg:hidden max-w-[1400px] mx-auto px-6 relative z-10 mb-20">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 animate-on-scroll">
+          {/* Card 1 */}
+          <div className="bg-[#0b0c10] border border-red-900/30 rounded-[20px] p-6 flex items-center gap-4">
+            <div className="w-14 h-14 bg-red-950/40 rounded-full flex items-center justify-center text-red-500 border border-red-600/30 shrink-0">
+              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" /></svg>
+            </div>
+            <div>
+              <div className="text-red-500 font-black text-sm mb-0.5">01</div>
+              <h3 className="text-base font-bold text-gray-100 mb-1">Find Blood</h3>
+              <p className="text-gray-400 text-xs">Search available blood units by type and location instantly.</p>
+            </div>
+          </div>
+          {/* Card 2 */}
+          <div className="bg-[#0b0c10] border border-red-900/30 rounded-[20px] p-6 flex items-center gap-4">
+            <div className="w-14 h-14 bg-red-950/40 rounded-full flex items-center justify-center text-red-500 border border-red-600/30 shrink-0">
+              <Calendar className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="text-red-500 font-black text-sm mb-0.5">02</div>
+              <h3 className="text-base font-bold text-gray-100 mb-1">Request Blood</h3>
+              <p className="text-gray-400 text-xs">Raise a blood request in seconds and get help.</p>
+            </div>
+          </div>
+          {/* Card 3 */}
+          <div className="bg-[#0b0c10] border border-red-900/30 rounded-[20px] p-6 flex items-center gap-4">
+            <div className="w-14 h-14 bg-red-950/40 rounded-full flex items-center justify-center text-red-500 border border-red-600/30 shrink-0">
+               <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+            </div>
+            <div>
+              <div className="text-red-500 font-black text-sm mb-0.5">03</div>
+              <h3 className="text-base font-bold text-gray-100 mb-1">Camp Management</h3>
+              <p className="text-gray-400 text-xs">Organize and manage blood donation camps with ease.</p>
+            </div>
+          </div>
+          {/* Card 4 */}
+          <div className="bg-[#0b0c10] border border-red-900/30 rounded-[20px] p-6 flex items-center gap-4">
+            <div className="w-14 h-14 bg-red-950/40 rounded-full flex items-center justify-center text-red-500 border border-red-600/30 shrink-0">
+              <Users className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="text-red-500 font-black text-sm mb-0.5">04</div>
+              <h3 className="text-base font-bold text-gray-100 mb-1">Donor Management</h3>
+              <p className="text-gray-400 text-xs">Maintain donor records and build a strong network.</p>
+            </div>
+          </div>
+          {/* Card 5 */}
+          <div className="bg-[#0b0c10] border border-red-900/30 rounded-[20px] p-6 flex items-center gap-4 md:col-span-2 lg:col-span-1">
+            <div className="w-14 h-14 bg-red-950/40 rounded-full flex items-center justify-center text-red-500 border border-red-600/30 shrink-0">
+              <BarChart3 className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="text-red-500 font-black text-sm mb-0.5">05</div>
+              <h3 className="text-base font-bold text-gray-100 mb-1">Reports & Analytics</h3>
+              <p className="text-gray-400 text-xs">Get real-time insights and reports to track impact.</p>
+            </div>
           </div>
         </div>
       </div>
@@ -371,96 +594,224 @@ const Services = () => {
       {/* ===== Complete Support Section ===== */}
       <div className="max-w-[1400px] mx-auto px-6 mt-24 mb-20 relative z-10 animate-on-scroll">
         {/* Section Header */}
-        <div className="text-center mb-14">
+        <div className="text-center mb-8">
           <span className="text-red-500 font-extrabold tracking-[0.2em] text-xs uppercase mb-3 block">OUR SERVICES</span>
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-black text-white mb-4">
-            Complete Support for Successful Blood Camps
+          <h2 className="text-3xl md:text-5xl font-black text-white mb-4">
+            Complete Support for Successful <span className="text-red-600">Blood Camps</span>
           </h2>
-          <div className="flex items-center justify-center gap-2 mt-3">
-            <div className="h-[2px] w-10 bg-red-600/60 rounded" />
-            <svg className="w-4 h-4 text-red-500" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
-            </svg>
-            <div className="h-[2px] w-10 bg-red-600/60 rounded" />
-          </div>
+          <p className="text-gray-400 text-sm max-w-xl mx-auto">
+            End-to-end solutions to help you organize, manage and run impactful blood donation camps.
+          </p>
         </div>
 
-        {/* 6 Service Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-5">
+        {/* Desktop Radial Layout (Hidden on Mobile) */}
+        <div className="hidden lg:flex max-w-[1100px] mx-auto relative h-[700px] items-center justify-center z-10">
+          
+          {/* SVG Connecting Tubes */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none z-10" viewBox="0 0 1100 700">
+             <defs>
+               <filter id="neonTube" x="-50%" y="-50%" width="200%" height="200%">
+                 <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                 <feMerge>
+                   <feMergeNode in="coloredBlur"/>
+                   <feMergeNode in="SourceGraphic"/>
+                 </feMerge>
+               </filter>
+               <linearGradient id="tubeGradLeft" x1="0%" y1="0%" x2="100%" y2="0%">
+                 <stop offset="0%" stopColor="rgba(220,38,38,0.3)" />
+                 <stop offset="100%" stopColor="rgba(220,38,38,1)" />
+               </linearGradient>
+               <linearGradient id="tubeGradRight" x1="0%" y1="0%" x2="100%" y2="0%">
+                 <stop offset="0%" stopColor="rgba(220,38,38,1)" />
+                 <stop offset="100%" stopColor="rgba(220,38,38,0.3)" />
+               </linearGradient>
+             </defs>
+
+             {/* Tubes from Left Cards to Center Bag */}
+             <path d="M 335 150 C 450 150, 480 200, 480 280 L 480 320" stroke="url(#tubeGradLeft)" strokeWidth="4" fill="none" filter="url(#neonTube)" />
+             <circle cx="335" cy="150" r="6" fill="#fff" stroke="#dc2626" strokeWidth="2" filter="url(#neonTube)" />
+             <circle cx="480" cy="320" r="4" fill="#dc2626" filter="url(#neonTube)" />
+
+             <path d="M 335 350 C 420 350, 450 380, 450 400" stroke="url(#tubeGradLeft)" strokeWidth="4" fill="none" filter="url(#neonTube)" />
+             <circle cx="335" cy="350" r="6" fill="#fff" stroke="#dc2626" strokeWidth="2" filter="url(#neonTube)" />
+             <circle cx="450" cy="400" r="4" fill="#dc2626" filter="url(#neonTube)" />
+
+             <path d="M 335 550 C 450 550, 480 500, 480 480 L 480 440" stroke="url(#tubeGradLeft)" strokeWidth="4" fill="none" filter="url(#neonTube)" />
+             <circle cx="335" cy="550" r="6" fill="#fff" stroke="#dc2626" strokeWidth="2" filter="url(#neonTube)" />
+             <circle cx="480" cy="440" r="4" fill="#dc2626" filter="url(#neonTube)" />
+
+             {/* Tubes from Right Cards to Center Bag */}
+             <path d="M 765 150 C 650 150, 620 200, 620 280 L 620 320" stroke="url(#tubeGradRight)" strokeWidth="4" fill="none" filter="url(#neonTube)" />
+             <circle cx="765" cy="150" r="6" fill="#fff" stroke="#dc2626" strokeWidth="2" filter="url(#neonTube)" />
+             <circle cx="620" cy="320" r="4" fill="#dc2626" filter="url(#neonTube)" />
+
+             <path d="M 765 350 C 680 350, 650 380, 650 400" stroke="url(#tubeGradRight)" strokeWidth="4" fill="none" filter="url(#neonTube)" />
+             <circle cx="765" cy="350" r="6" fill="#fff" stroke="#dc2626" strokeWidth="2" filter="url(#neonTube)" />
+             <circle cx="650" cy="400" r="4" fill="#dc2626" filter="url(#neonTube)" />
+
+             <path d="M 765 550 C 650 550, 620 500, 620 480 L 620 440" stroke="url(#tubeGradRight)" strokeWidth="4" fill="none" filter="url(#neonTube)" />
+             <circle cx="765" cy="550" r="6" fill="#fff" stroke="#dc2626" strokeWidth="2" filter="url(#neonTube)" />
+             <circle cx="620" cy="440" r="4" fill="#dc2626" filter="url(#neonTube)" />
+          </svg>
+
+          {/* Central Custom Blood Bag Element */}
+          <div className="absolute z-20 flex flex-col items-center justify-center w-[220px]">
+             {/* Main Bag Body */}
+             <div className="relative w-[180px] h-[260px] bg-gradient-to-b from-red-600/30 to-red-900/80 rounded-[35px] border-4 border-red-500/40 shadow-[0_0_60px_rgba(220,38,38,0.4)] backdrop-blur-md overflow-visible flex items-center justify-center">
+                 {/* Top Tubes of the bag */}
+                 <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-24 flex justify-between px-1">
+                     <div className="w-3 h-12 bg-gradient-to-b from-transparent to-red-600 rounded-t-full border-x border-t border-red-500/50 tube-glow"></div>
+                     <div className="w-3 h-16 bg-gradient-to-b from-transparent to-red-600 rounded-t-full border-x border-t border-red-500/50 tube-glow -mt-4"></div>
+                     <div className="w-3 h-12 bg-gradient-to-b from-transparent to-red-600 rounded-t-full border-x border-t border-red-500/50 tube-glow"></div>
+                 </div>
+                 {/* Inner Label */}
+                 <div className="bg-zinc-100 w-[140px] h-[170px] rounded-[15px] flex flex-col items-center justify-center shadow-inner relative z-10 p-2">
+                     <h4 className="text-red-600 font-black text-xl leading-none mb-1">BLOOD</h4>
+                     <p className="text-zinc-800 font-extrabold text-xs uppercase tracking-[0.2em] mb-4">DONATION</p>
+                     <Droplet className="w-10 h-10 text-red-600 fill-red-600 drop-shadow-md mb-3" />
+                     <p className="text-[7px] text-zinc-500 font-bold uppercase w-[90%] text-center leading-tight mb-2">TOGETHER, WE CAN SAVE MORE LIVES</p>
+                     <div className="w-[80%] h-4 border-y border-zinc-400 flex flex-col justify-center gap-0.5 px-1">
+                         <div className="w-full h-0.5 bg-zinc-800"></div>
+                         <div className="w-full flex justify-between gap-1">
+                             <div className="w-full h-0.5 bg-zinc-800"></div>
+                             <div className="w-1/2 h-0.5 bg-zinc-800"></div>
+                         </div>
+                     </div>
+                 </div>
+             </div>
+          </div>
+
+          {/* Card 1: Blood Donation Camp Setup (Top Left) */}
+          <div className="support-card" style={{ top: '100px', left: '15px' }}>
+            <div className="support-icon">
+              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8"><path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
+            </div>
+            <div className="text-left flex-1">
+              <h3 className="text-white font-bold text-sm mb-1 leading-tight">Blood Donation<br/>Camp Setup</h3>
+              <p className="text-[10px] text-gray-400 leading-tight">We help you plan and organize blood donation camps successfully.</p>
+            </div>
+          </div>
+
+          {/* Card 2: Hospital Partnership (Mid Left) */}
+          <div className="support-card" style={{ top: '300px', left: '15px' }}>
+            <div className="support-icon">
+              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+            </div>
+            <div className="text-left flex-1">
+              <h3 className="text-white font-bold text-sm mb-1 leading-tight">Hospital<br/>Partnership</h3>
+              <p className="text-[10px] text-gray-400 leading-tight">Partner with trusted hospitals and ensure safe blood collection.</p>
+            </div>
+          </div>
+
+          {/* Card 3: Location Planning (Bot Left) */}
+          <div className="support-card" style={{ top: '500px', left: '15px' }}>
+            <div className="support-icon">
+              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            </div>
+            <div className="text-left flex-1">
+              <h3 className="text-white font-bold text-sm mb-1 leading-tight">Location<br/>Planning</h3>
+              <p className="text-[10px] text-gray-400 leading-tight">We assist in selecting the best location and camp arrangements.</p>
+            </div>
+          </div>
+
+          {/* Card 4: Medical Staff Support (Top Right) */}
+          <div className="support-card" style={{ top: '100px', right: '15px', flexDirection: 'row-reverse' }}>
+            <div className="support-icon">
+              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+            </div>
+            <div className="text-right flex-1">
+              <h3 className="text-white font-bold text-sm mb-1 leading-tight">Medical Staff<br/>Support</h3>
+              <p className="text-[10px] text-gray-400 leading-tight">Trained medical staff and professionals for smooth operations.</p>
+            </div>
+          </div>
+
+          {/* Card 5: Mobile Blood Collection Van (Mid Right) */}
+          <div className="support-card" style={{ top: '300px', right: '15px', flexDirection: 'row-reverse' }}>
+            <div className="support-icon">
+              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8"><path strokeLinecap="round" strokeLinejoin="round" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2 2h9l2-2zM3 7h13M16 16h2a1 1 0 001-1v-4l-3-5h-1" /></svg>
+            </div>
+            <div className="text-right flex-1">
+              <h3 className="text-white font-bold text-sm mb-1 leading-tight">Mobile Blood<br/>Collection Van</h3>
+              <p className="text-[10px] text-gray-400 leading-tight">Our vans reach your location for hassle-free blood collection.</p>
+            </div>
+          </div>
+
+          {/* Card 6: Camp Analytics & Reports (Bot Right) */}
+          <div className="support-card" style={{ top: '500px', right: '15px', flexDirection: 'row-reverse' }}>
+            <div className="support-icon">
+              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8"><path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+            </div>
+            <div className="text-right flex-1">
+              <h3 className="text-white font-bold text-sm mb-1 leading-tight">Camp Analytics &<br/>Reports</h3>
+              <p className="text-[10px] text-gray-400 leading-tight">Detailed reports and analytics of your camp and its impact.</p>
+            </div>
+          </div>
+
+          {/* Bottom Pill Button */}
+          <div className="absolute bottom-[-10px] left-1/2 -translate-x-1/2 z-30">
+            <Link to="/organizer-enquiry" className="inline-flex items-center gap-3 px-8 py-4 bg-[#0a0a0a] hover:bg-red-950/20 border border-red-600/40 rounded-full text-white text-xs font-bold uppercase tracking-widest transition-all hover:border-red-500 shadow-[0_0_20px_rgba(220,38,38,0.15)] group">
+              <Heart className="w-4 h-4 text-red-500" />
+              Together, We Can Save More Lives
+              <ArrowRight className="w-4 h-4 text-red-500 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
+
+        </div>
+
+        {/* Mobile Stacked Layout (Hidden on Desktop) */}
+        <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-5 mt-10">
           {[
             {
-              icon: (
-                <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                </svg>
-              ),
+              icon: <svg className="w-7 h-7 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8"><path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>,
               title: "Blood Donation Camp Setup",
               desc: "We help you plan and organize blood donation camps successfully."
             },
             {
-              icon: (
-                <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-              ),
+              icon: <svg className="w-7 h-7 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>,
               title: "Hospital Partnership",
               desc: "Partner with trusted hospitals and ensure safe blood collection."
             },
             {
-              icon: (
-                <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              ),
+              icon: <svg className="w-7 h-7 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>,
               title: "Medical Staff Support",
               desc: "Trained medical staff and professionals for smooth operations."
             },
             {
-              icon: (
-                <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2 2h9l2-2zM3 7h13M16 16h2a1 1 0 001-1v-4l-3-5h-1" />
-                </svg>
-              ),
+              icon: <svg className="w-7 h-7 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8"><path strokeLinecap="round" strokeLinejoin="round" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l2 2h9l2-2zM3 7h13M16 16h2a1 1 0 001-1v-4l-3-5h-1" /></svg>,
               title: "Mobile Blood Collection Van",
               desc: "Our mobile vans reach your location for hassle-free blood collection."
             },
             {
-              icon: (
-                <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              ),
+              icon: <svg className="w-7 h-7 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>,
               title: "Location Planning",
               desc: "We assist in selecting the best location and camp arrangements."
             },
             {
-              icon: (
-                <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              ),
+              icon: <svg className="w-7 h-7 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8"><path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>,
               title: "Camp Analytics & Reports",
               desc: "Detailed reports and analytics of your camp and its impact."
             }
           ].map((item, idx) => (
             <div
               key={idx}
-              className="group bg-[#0a0a0e] border border-zinc-800/60 rounded-[20px] p-6 flex flex-col gap-4 hover:border-red-600/40 hover:-translate-y-1 transition-all duration-300 cursor-pointer"
+              className="bg-[#050505] border border-red-900/30 rounded-3xl p-6 flex flex-col gap-4"
             >
-              <div className="w-14 h-14 bg-[#110a0a] border border-red-900/30 rounded-full flex items-center justify-center text-red-500 group-hover:bg-red-950/40 group-hover:shadow-[0_0_18px_rgba(220,38,38,0.25)] transition-all duration-300">
+              <div className="w-14 h-14 bg-black border border-red-600/50 rounded-full flex items-center justify-center text-red-500 shadow-[0_0_15px_rgba(220,38,38,0.2)]">
                 {item.icon}
               </div>
-              <h3 className="text-sm font-bold text-gray-100 group-hover:text-red-400 transition-colors leading-snug">
+              <h3 className="text-base font-bold text-white leading-tight">
                 {item.title}
               </h3>
               <p className="text-xs text-gray-500 leading-relaxed flex-1">{item.desc}</p>
-              <button className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-500/80 group-hover:text-red-400 transition-colors mt-auto">
-                Learn More <ArrowRight size={13} />
-              </button>
             </div>
           ))}
+          <div className="sm:col-span-2 flex justify-center mt-4">
+             <Link to="/organizer-enquiry" className="inline-flex items-center gap-3 px-8 py-4 bg-[#0a0a0a] hover:bg-red-950/20 border border-red-600/40 rounded-full text-white text-xs font-bold uppercase tracking-widest transition-all hover:border-red-500 shadow-[0_0_20px_rgba(220,38,38,0.15)] group">
+               <Heart className="w-4 h-4 text-red-500" />
+               Together, We Can Save More Lives
+               <ArrowRight className="w-4 h-4 text-red-500 group-hover:translate-x-1 transition-transform" />
+             </Link>
+          </div>
         </div>
       </div>
 

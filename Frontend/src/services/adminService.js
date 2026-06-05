@@ -9,6 +9,10 @@ const adminService = {
     const res = await api.get("/admin/organizers");
     return res.data;
   },
+  getTotalUsers: async () => {
+    const res = await api.get("/admin/users/count");
+    return res.data.count;
+  },
   updateOrganizer: async (id, data) => {
     const res = await api.put(`/admin/organizers/${id}`, data);
     return res.data;

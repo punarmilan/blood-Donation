@@ -68,6 +68,16 @@ router.post('/', async (req, res) => {
     return res.status(500).json({ message: 'Error creating donor', error: err.message });
   }
 });
+// Get all donors
+router.get('/', verifyToken, async (req, res) => {
+  try {
+    const donors = await Donor.find().sort({ createdAt: -1 })
+    res.json(donors)
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching donors', error: err.message })
+  }
+})
+
 // Get donors by camp
 router.get('/camp/:campId', verifyToken, async (req, res) => {
   try {

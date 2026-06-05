@@ -40,10 +40,13 @@ router.post("/", verifyToken, async (req, res) => {
 
     // 1️⃣ Create Camp
     const camp = await Camp.create({
+      title: name,
       name,
+      venue: location || 'Unknown',
+      area: location || 'Unknown',
       location,
       date,
-      organizerId: organizerId || null,
+      organizer: organizerId || null,
       organizerName,
       organizerContact,
       proName,
@@ -175,6 +178,11 @@ router.put("/:id", verifyToken, async (req, res) => {
       if (field in req.body && req.body[field] !== "") {
         payload[field] = req.body[field];
       }
+    }
+    if (payload.name) payload.title = payload.name;
+    if (payload.location) {
+      payload.venue = payload.location;
+      payload.area = payload.location;
     }
 
     // 🔁 Organizer Change Handling

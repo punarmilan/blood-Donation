@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import ImpactGalleryAdmin from "../components/ImpactGalleryAdmin.jsx";
 import SuccessStoriesAdmin from "../components/SuccessStoriesAdmin.jsx";
 import NewsAdmin from "../components/NewsAdmin.jsx";
+import BloodRequestBackgroundAdmin from "../components/BloodRequestBackgroundAdmin.jsx";
 import adminService from "../services/adminService";
 import campService from "../services/campService";
 import donorService from "../services/donorService";
@@ -44,6 +46,7 @@ const daysUntil = (date) => {
 
 const Admin = () => {
   const [currentView, setCurrentView] = useState("dashboard"); // "dashboard" | "camps" | "users" | "enquiries" | "organizers"
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [donors, setDonors] = useState([]);
   const [camps, setCamps] = useState([]);
   const [selectedCamp, setSelectedCamp] = useState(null);
@@ -58,6 +61,7 @@ const Admin = () => {
   // --- Blood Requests States ---
   const [bloodRequests, setBloodRequests] = useState([]);
   const [loadingBloodRequests, setLoadingBloodRequests] = useState(false);
+  const [totalPlatformUsers, setTotalPlatformUsers] = useState(0);
 
   // Donor Edit states
   const [editDonorId, setEditDonorId] = useState(null);
@@ -125,13 +129,13 @@ const Admin = () => {
       const data = await response.json();
       if (data.success) {
         setHomeBgUrl(data.fileUrl);
-        alert("🎉 File uploaded successfully! Click 'Save Theme Settings' to apply.");
+        toast.success("File uploaded successfully! Click 'Save Theme Settings' to apply.");
       } else {
-        alert("Upload failed: " + data.message);
+        toast.error("Upload failed: " + data.message);
       }
     } catch (err) {
       console.error(err);
-      alert("Error uploading file. Make sure backend is running.");
+      toast.error("Error uploading file. Make sure backend is running.");
     } finally {
       setUploading(false);
     }
@@ -151,13 +155,13 @@ const Admin = () => {
       });
       const data = await response.json();
       if (data.success) {
-        alert("🎉 UI/UX background updated successfully on server! Visit the Home page to see the changes.");
+        toast.success("UI/UX background updated successfully on server! Visit the Home page to see the changes.");
       } else {
-        alert("Saved to local storage, but server database save failed.");
+        toast.error("Saved to local storage, but server database save failed.");
       }
     } catch (err) {
       console.error(err);
-      alert("Saved to local storage, but server connection failed.");
+      toast.error("Saved to local storage, but server connection failed.");
     }
   };
 
@@ -187,7 +191,17 @@ const Admin = () => {
     fetchEnquiries();
     fetchThemeSettings();
     fetchBloodRequests();
+    fetchTotalUsers();
   }, []);
+
+  const fetchTotalUsers = async () => {
+    try {
+      const count = await adminService.getTotalUsers();
+      setTotalPlatformUsers(count || 0);
+    } catch (err) {
+      console.error("Failed to load total users", err);
+    }
+  };
 
   const fetchBloodRequests = async () => {
     setLoadingBloodRequests(true);
@@ -258,9 +272,9 @@ const Admin = () => {
         prev.map((org) => (org._id === id ? { ...org, ...editOrganizerForm } : org))
       );
       setEditOrganizerId(null);
-      alert("✅ Organizer updated successfully!");
+      toast.success("Organizer updated successfully!");
     } catch (err) {
-      alert("Error updating organizer");
+      toast.error("Error updating organizer");
     }
   };
 
@@ -269,9 +283,9 @@ const Admin = () => {
     try {
       await adminService.deleteOrganizer(id);
       setOrganizersList((prev) => prev.filter((org) => org._id !== id));
-      alert("✅ Deleted successfully!");
+      toast.success("Deleted successfully!");
     } catch (err) {
-      alert("Error deleting organizer");
+      toast.error("Error deleting organizer");
     }
   };
 
@@ -293,9 +307,9 @@ const Admin = () => {
     try {
       await adminService.deleteEnquiry(id);
       setEnquiries((prev) => prev.filter((e) => e._id !== id));
-      alert("✅ Deleted successfully");
+      toast.success("Deleted successfully");
     } catch (err) {
-      alert("Failed to delete");
+      toast.error("Failed to delete");
     }
   };
 
@@ -324,9 +338,9 @@ const Admin = () => {
         prev.map((e) => (e._id === editingEnquiry._id ? data.enquiry : e))
       );
       setEditingEnquiry(null);
-      alert("✅ Enquiry Details Updated!");
+      toast.success("Enquiry Details Updated!");
     } catch (err) {
-      alert("Failed to update enquiry");
+      toast.error("Failed to update enquiry");
     }
   };
 
@@ -337,42 +351,42 @@ const Admin = () => {
     try {
       const data = await adminService.approveEnquiry(enquiryId, pw);
       if (data.type === "existing_user") {
-        alert("✅ Approved (Existing User).\nCamp assigned.\nUser logs in with OLD password.");
+        toast.success("Approved (Existing User).\nCamp assigned.\nUser logs in with OLD password.");
       } else {
-        alert(`✅ Approved (New User).\nEmail: ${data.organizerLogin.email}\nPassword: ${data.organizerLogin.password}`);
+        toast.success(`Approved (New User).\nEmail: ${data.organizerLogin.email}\nPassword: ${data.organizerLogin.password}`);
       }
       fetchEnquiries();
     } catch (err) {
-      alert(err?.response?.data?.message || "Approve failed");
+      toast.error(err?.response?.data?.message || "Approve failed");
     }
   };
 
   const resetEnquiryPassword = async () => {
     if (!newEnquiryPassword.trim()) {
-      alert("Please enter new password");
+      toast.error("Please enter new password");
       return;
     }
 
     try {
       await adminService.resetOrganizerPassword(resetEnquiryModal._id, newEnquiryPassword);
-      alert("✅ Password updated successfully");
+      toast.success("Password updated successfully");
       setResetEnquiryModal(null);
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to update password");
+      toast.error(err?.response?.data?.message || "Failed to update password");
     }
   };
 
   const rejectEnquiry = async (enquiryId) => {
     const reason = (rejectReasonById[enquiryId] || "").trim();
-    if (!reason) return alert("Please enter rejection reason");
+    if (!reason) return toast.error("Please enter rejection reason");
     if (!window.confirm("Reject this enquiry?")) return;
 
     try {
       await adminService.rejectEnquiry(enquiryId, reason);
-      alert("✅ Rejected");
+      toast.success("Rejected");
       fetchEnquiries();
     } catch (err) {
-      alert("Reject failed");
+      toast.error("Reject failed");
     }
   };
 
@@ -402,8 +416,8 @@ const Admin = () => {
       const data = await campService.getCampsWithCount();
       const campsData = data || [];
       setCamps(campsData);
-      if (campsData.length > 0 && !selectedCamp) {
-        setSelectedCamp(campsData[0]._id);
+      if (!selectedCamp) {
+        setSelectedCamp("all");
       }
     } catch (err) {
       console.error("Failed to fetch camps:", err.response || err);
@@ -418,7 +432,12 @@ const Admin = () => {
     if (!selectedCamp) return;
     setLoadingDonors(true);
     try {
-      const data = await donorService.getDonorsByCamp(selectedCamp);
+      let data;
+      if (selectedCamp === "all") {
+        data = await donorService.getAllDonors();
+      } else {
+        data = await donorService.getDonorsByCamp(selectedCamp);
+      }
       setDonors(data || []);
     } catch (err) {
       console.error("Failed to fetch donors:", err.response || err);
@@ -453,10 +472,10 @@ const Admin = () => {
       });
       fetchCamps();
       setShowAddCampModal(false);
-      alert("Camp added successfully!");
+      toast.success("Camp added successfully!");
     } catch (err) {
       console.error(err.response || err);
-      alert(err?.response?.data?.message || "Error adding camp.");
+      toast.error(err?.response?.data?.message || "Error adding camp.");
     }
   };
 
@@ -482,10 +501,10 @@ const Admin = () => {
       await campService.updateCamp(id, editCampForm);
       setEditCampId(null);
       await fetchCamps();
-      alert("✅ Camp updated successfully!");
+      toast.success("Camp updated successfully!");
     } catch (err) {
       console.error(err.response || err);
-      alert(err?.response?.data?.message || "Error updating camp");
+      toast.error(err?.response?.data?.message || "Error updating camp");
     }
   };
 
@@ -498,10 +517,10 @@ const Admin = () => {
         setDonors([]);
       }
       await fetchCamps();
-      alert("✅ Camp deleted successfully!");
+      toast.success("Camp deleted successfully!");
     } catch (err) {
       console.error(err.response || err);
-      alert(err?.response?.data?.message || "Error deleting camp");
+      toast.error(err?.response?.data?.message || "Error deleting camp");
     }
   };
 
@@ -511,10 +530,10 @@ const Admin = () => {
       await donorService.deleteDonor(id);
       await fetchDonors();
       await fetchCamps();
-      alert("Donor deleted successfully!");
+      toast.success("Donor deleted successfully!");
     } catch (err) {
       console.error(err.response || err);
-      alert(err?.response?.data?.message || "Error deleting donor");
+      toast.error(err?.response?.data?.message || "Error deleting donor");
     }
   };
 
@@ -536,12 +555,12 @@ const Admin = () => {
       setEditDonorId(null);
     } catch (err) {
       console.error(err.response || err);
-      alert(err?.response?.data?.message || "Error saving donor update");
+      toast.error(err?.response?.data?.message || "Error saving donor update");
     }
   };
 
   const downloadPDF = () => {
-    if (!donors.length) return alert("No donors to export.");
+    if (!donors.length) return toast.error("No donors to export.");
     const doc = new jsPDF();
 
     const camp = camps.find((c) => c._id === selectedCamp);
@@ -557,8 +576,7 @@ const Admin = () => {
       const campLines = [
         `Date: ${camp.date ? new Date(camp.date).toLocaleDateString() : "N/A"}`,
         `Location: ${camp.location || "N/A"}`,
-        `Organizer: ${camp.organizerName || "N/A"} (${
-          camp.organizerContact || "N/A"
+        `Organizer: ${camp.organizerName || "N/A"} (${camp.organizerContact || "N/A"
         })`,
         `PRO: ${camp.proName || "N/A"}`,
         `Hospital: ${camp.hospitalName || "N/A"}`,
@@ -706,16 +724,16 @@ const Admin = () => {
       du < 0
         ? "Done"
         : du === 0
-        ? "Today"
-        : du === 1
-        ? "Tomorrow"
-        : `In ${du} days`;
+          ? "Today"
+          : du === 1
+            ? "Tomorrow"
+            : `In ${du} days`;
     const cls =
       du < 0
         ? "bg-secondary"
         : du <= 3
-        ? "bg-warning text-dark"
-        : "bg-light text-dark";
+          ? "bg-warning text-dark"
+          : "bg-light text-dark";
     return <span className={`badge ${cls}`}>{whenLabel}</span>;
   };
 
@@ -778,6 +796,31 @@ const Admin = () => {
           flex-shrink: 0;
           border-right: 1px solid #1e293b;
           box-shadow: 4px 0 25px rgba(0, 0, 0, 0.08);
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          overflow-y: auto;
+          overflow-x: hidden;
+        }
+        .sidebar.collapsed {
+          width: 80px;
+          padding: 1.5rem 0.5rem;
+        }
+        .sidebar.collapsed .brand-name,
+        .sidebar.collapsed .brand-subtitle,
+        .sidebar.collapsed .menu-section-title,
+        .sidebar.collapsed .menu-item-text,
+        .sidebar.collapsed .emergency-btn {
+          display: none;
+        }
+        .sidebar.collapsed .brand-container {
+          justify-content: center;
+          padding: 0;
+        }
+        .sidebar.collapsed .menu-item {
+          justify-content: center;
+          padding: 0.75rem;
+        }
+        .sidebar.collapsed .menu-item-icon {
+          font-size: 1.25rem;
         }
         .brand-container {
           display: flex;
@@ -831,7 +874,8 @@ const Admin = () => {
           border: none;
           cursor: pointer;
           text-align: left;
-          transition: all 0.2s ease-in-out;
+          transition: all 0.2s ease;
+          white-space: nowrap;
         }
         .menu-item:hover {
           background-color: #1e293b;
@@ -874,17 +918,34 @@ const Admin = () => {
           overflow-x: hidden;
         }
         .top-header {
-          height: 70px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 1rem 2rem;
           background-color: #ffffff;
           border-bottom: 1px solid #e2e8f0;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 2rem;
           position: sticky;
           top: 0;
-          z-index: 10;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+          z-index: 100;
+        }
+        .header-left {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+        }
+        .toggle-sidebar-btn {
+          background: transparent;
+          border: none;
+          font-size: 1.25rem;
+          cursor: pointer;
+          color: #64748b;
+          padding: 0.5rem;
+          border-radius: 0.375rem;
+          transition: background-color 0.2s;
+        }
+        .toggle-sidebar-btn:hover {
+          background-color: #f1f5f9;
+          color: #0f172a;
         }
         .search-container {
           display: flex;
@@ -1223,9 +1284,9 @@ const Admin = () => {
         }
       `}</style>
       {/* 1. Left Sidebar Navigation */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${!isSidebarOpen ? 'collapsed' : ''}`}>
         <div className="brand-container">
-          <div className="brand-logo">🩸</div>
+          <div className="brand-logo" title="LifeDrop">🩸</div>
           <div>
             <div className="brand-name">Life<span>Drop</span></div>
             <div className="brand-subtitle">Admin Panel</div>
@@ -1237,8 +1298,9 @@ const Admin = () => {
           <button
             className={`menu-item ${currentView === "dashboard" ? "active" : ""}`}
             onClick={() => setCurrentView("dashboard")}
+            title="Dashboard"
           >
-            <span className="menu-item-icon">📊</span> Dashboard
+            <span className="menu-item-icon">📊</span> <span className="menu-item-text">Dashboard</span>
           </button>
         </div>
 
@@ -1247,32 +1309,37 @@ const Admin = () => {
           <button
             className={`menu-item ${currentView === "camps" ? "active" : ""}`}
             onClick={() => setCurrentView("camps")}
+            title="Camps"
           >
-            <span className="menu-item-icon">⛺</span> Camps
+            <span className="menu-item-icon">⛺</span> <span className="menu-item-text">Camps</span>
           </button>
           <button
             className={`menu-item ${currentView === "users" ? "active" : ""}`}
             onClick={() => setCurrentView("users")}
+            title="Donors (Users)"
           >
-            <span className="menu-item-icon">👥</span> Donors (Users)
+            <span className="menu-item-icon">👥</span> <span className="menu-item-text">Donors (Users)</span>
           </button>
           <button
             className={`menu-item ${currentView === "enquiries" ? "active" : ""}`}
             onClick={() => setCurrentView("enquiries")}
+            title="Enquiries"
           >
-            <span className="menu-item-icon">📋</span> Enquiries
+            <span className="menu-item-icon">📋</span> <span className="menu-item-text">Enquiries</span>
           </button>
           <button
             className={`menu-item ${currentView === "blood-requests" ? "active" : ""}`}
             onClick={() => setCurrentView("blood-requests")}
+            title="Blood Requests"
           >
-            <span className="menu-item-icon">🩸</span> Blood Requests
+            <span className="menu-item-icon">🩸</span> <span className="menu-item-text">Blood Requests</span>
           </button>
           <button
             className={`menu-item ${currentView === "organizers" ? "active" : ""}`}
             onClick={() => setCurrentView("organizers")}
+            title="Organizers"
           >
-            <span className="menu-item-icon">🤝</span> Organizers
+            <span className="menu-item-icon">🤝</span> <span className="menu-item-text">Organizers</span>
           </button>
         </div>
 
@@ -1281,20 +1348,30 @@ const Admin = () => {
           <button
             className={`menu-item ${currentView === "uiux" ? "active" : ""}`}
             onClick={() => setCurrentView("uiux")}
+            title="UI/UX"
           >
-            <span className="menu-item-icon">🎨</span> UI/UX
+            <span className="menu-item-icon">🎨</span> <span className="menu-item-text">UI/UX</span>
+          </button>
+          <button
+            className={`menu-item ${currentView === "blood-request-background" ? "active" : ""}`}
+            onClick={() => setCurrentView("blood-request-background")}
+            title="Blood Request Background"
+          >
+            <span className="menu-item-icon">🖼️</span> <span className="menu-item-text">Blood Request Background</span>
           </button>
           <button
             className={`menu-item ${currentView === "impact-gallery" ? "active" : ""}`}
             onClick={() => setCurrentView("impact-gallery")}
+            title="Impact Gallery"
           >
-            <span className="menu-item-icon">🖼️</span> Impact Gallery
+            <span className="menu-item-icon">🖼️</span> <span className="menu-item-text">Impact Gallery</span>
           </button>
           <button
             className={`menu-item ${currentView === "success-stories" ? "active" : ""}`}
             onClick={() => setCurrentView("success-stories")}
+            title="Success Stories"
           >
-            <span className="menu-item-icon">🌟</span> Success Stories
+            <span className="menu-item-icon">🌟</span> <span className="menu-item-text">Success Stories</span>
           </button>
         </div>
 
@@ -1303,15 +1380,16 @@ const Admin = () => {
           <button
             className={`menu-item ${currentView === "news" ? "active" : ""}`}
             onClick={() => setCurrentView("news")}
+            title="News & Awareness"
           >
-            <span className="menu-item-icon">📰</span> News & Awareness
+            <span className="menu-item-icon">📰</span> <span className="menu-item-text">News & Awareness</span>
           </button>
         </div>
 
         <div className="menu-section">
           <div className="menu-section-title">Settings</div>
-          <button className="menu-item" onClick={handleLogout}>
-            <span className="menu-item-icon">🚪</span> Logout
+          <button className="menu-item" onClick={handleLogout} title="Logout">
+            <span className="menu-item-icon">🚪</span> <span className="menu-item-text">Logout</span>
           </button>
         </div>
 
@@ -1324,15 +1402,20 @@ const Admin = () => {
       <main className="main-content">
         {/* Top Header Bar */}
         <header className="top-header">
-          <div className="search-container">
-            <span className="search-icon">🔍</span>
-            <input
-              type="text"
-              placeholder="Search anything here..."
-              className="search-input"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+          <div className="header-left">
+            <button className="toggle-sidebar-btn" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+              {isSidebarOpen ? '🡨' : '☰'}
+            </button>
+            <div className="search-container">
+              <span className="search-icon">🔍</span>
+              <input
+                type="text"
+                placeholder="Search anything here..."
+                className="search-input"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="header-actions">
@@ -1372,7 +1455,7 @@ const Admin = () => {
                 <div className="stat-icon-container users">👥</div>
                 <div className="stat-details">
                   <span className="stat-label">Total Users</span>
-                  <span className="stat-value">{totalDonorsAcrossCamps}</span>
+                  <span className="stat-value">{totalPlatformUsers}</span>
                   <span className="stat-trend up">▲ 12.5%</span>
                 </div>
               </div>
@@ -1390,7 +1473,7 @@ const Admin = () => {
                 <div className="stat-icon-container requests">❤️</div>
                 <div className="stat-details">
                   <span className="stat-label">Blood Requests</span>
-                  <span className="stat-value">{donors.length}</span>
+                  <span className="stat-value">{bloodRequests.length}</span>
                   <span className="stat-trend down">▼ 3.2%</span>
                 </div>
               </div>
@@ -1417,7 +1500,7 @@ const Admin = () => {
                   <div className="chart-grid-line" style={{ bottom: "25%" }} />
                   <div className="chart-grid-line" style={{ bottom: "50%" }} />
                   <div className="chart-grid-line" style={{ bottom: "75%" }} />
-                  
+
                   <svg viewBox="0 0 500 150" style={{ width: "100%", height: "100%", overflow: "visible" }}>
                     <path
                       d="M 10 120 Q 80 50 160 100 T 320 30 T 480 90"
@@ -1468,51 +1551,51 @@ const Admin = () => {
                   <h3 className="table-title">Live Blood Requests (Last 24 Hours)</h3>
                   <button className="view-all-link" onClick={() => setCurrentView("dashboard")}>View All</button>
                 </div>
-                
+
                 <div className="custom-table-container">
                   {loadingBloodRequests ? (
                     <p className="text-center py-4 text-muted">Loading...</p>
                   ) : (() => {
-                      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-                      const recentBloodRequests = bloodRequests
-                        .filter((req) => new Date(req.createdAt) >= twentyFourHoursAgo)
-                        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-                        .slice(0, 5);
-                      
-                      if (recentBloodRequests.length === 0) {
-                        return <p className="text-center py-4 text-muted">No blood requests in the last 24 hours.</p>;
-                      }
-                      
-                      return (
-                        <table className="premium-table">
-                          <thead>
-                            <tr>
-                              <th>ID</th>
-                              <th>Patient Name</th>
-                              <th>Blood Group</th>
-                              <th>Hospital / City</th>
-                              <th>Status</th>
+                    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                    const recentBloodRequests = bloodRequests
+                      .filter((req) => new Date(req.createdAt) >= twentyFourHoursAgo)
+                      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                      .slice(0, 5);
+
+                    if (recentBloodRequests.length === 0) {
+                      return <p className="text-center py-4 text-muted">No blood requests in the last 24 hours.</p>;
+                    }
+
+                    return (
+                      <table className="premium-table">
+                        <thead>
+                          <tr>
+                            <th>ID</th>
+                            <th>Patient Name</th>
+                            <th>Blood Group</th>
+                            <th>Hospital / City</th>
+                            <th>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {recentBloodRequests.map((req) => (
+                            <tr key={req._id}>
+                              <td className="donor-table-id">{req.requestId || `#REQ-${req._id.slice(-4).toUpperCase()}`}</td>
+                              <td>{req.patientName}</td>
+                              <td>
+                                <span className="donor-table-group">{req.bloodGroup}</span>
+                              </td>
+                              <td>{req.hospital} {req.city ? `(${req.city})` : ''}</td>
+                              <td>
+                                <span className={`status-badge ${req.status === "fulfilled" ? "fulfilled" : req.status === "closed" ? "urgent" : "pending"}`}>
+                                  {req.status || "Pending"}
+                                </span>
+                              </td>
                             </tr>
-                          </thead>
-                          <tbody>
-                            {recentBloodRequests.map((req) => (
-                              <tr key={req._id}>
-                                <td className="donor-table-id">{req.requestId || `#REQ-${req._id.slice(-4).toUpperCase()}`}</td>
-                                <td>{req.patientName}</td>
-                                <td>
-                                  <span className="donor-table-group">{req.bloodGroup}</span>
-                                </td>
-                                <td>{req.hospital} {req.city ? `(${req.city})` : ''}</td>
-                                <td>
-                                  <span className={`status-badge ${req.status === "fulfilled" ? "fulfilled" : req.status === "closed" ? "urgent" : "pending"}`}>
-                                    {req.status || "Pending"}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      );
+                          ))}
+                        </tbody>
+                      </table>
+                    );
                   })()}
                 </div>
               </div>
@@ -1608,124 +1691,118 @@ const Admin = () => {
             {loadingCamps ? (
               <p className="text-center py-4">Loading camps database...</p>
             ) : (
-              <div className="row g-4">
-                {(tab === "all" ? allCampsList : tab === "upcoming" ? upcomingCamps : doneCamps).map((camp) => {
-                  const past = !isUpcoming(toDate(camp?.date));
-                  const assignedOrg = camp.organizerId && typeof camp.organizerId === "object" ? camp.organizerId : null;
+              <div className="custom-table-container">
+                <table className="premium-table">
+                  <thead>
+                    <tr>
+                      <th>Camp Name</th>
+                      <th>Date</th>
+                      <th>Location / Hospital</th>
+                      <th>Organizer</th>
+                      <th>Donors</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(tab === "all" ? allCampsList : tab === "upcoming" ? upcomingCamps : doneCamps).map((camp) => {
+                      const past = !isUpcoming(toDate(camp?.date));
+                      const assignedOrg = camp.organizer && typeof camp.organizer === "object" ? camp.organizer : null;
 
-                  return (
-                    <div className="col-md-6 col-lg-4" key={camp._id}>
-                      <div className="card h-100 shadow-sm border-0 position-relative">
-                        <div className="card-header bg-white border-bottom-0 d-flex justify-content-between align-items-start pt-3">
-                          <div>
-                            <h5 className="card-title text-danger fw-bold mb-1">{camp.name}</h5>
-                            <div className="d-flex align-items-center gap-2">
-                              <span className="badge bg-light text-dark border">
-                                📅 {camp.date ? new Date(camp.date).toLocaleDateString() : "No date"}
-                              </span>
-                              {whenBadge(camp.date)}
+                      return (
+                        <tr key={camp._id} style={{ position: 'relative' }}>
+                          <td className="fw-bold text-danger">{camp.title || camp.name || camp.campId}</td>
+                          <td>
+                            <div>{camp.date ? new Date(camp.date).toLocaleDateString() : "No date"}</div>
+                            <div className="mt-1">{whenBadge(camp.date)}</div>
+                          </td>
+                          <td>
+                            <div>📍 {camp.location || camp.venue || camp.area || "N/A"}</div>
+                            <div className="text-muted small">🏥 {camp.hospitalName || "N/A"}</div>
+                            <div className="text-muted small">👤 {camp.proName || "N/A"}</div>
+                          </td>
+                          <td>
+                            {assignedOrg ? (
+                              <>
+                                <div className="fw-bold text-primary">{assignedOrg.name}</div>
+                                <div className="text-muted small">📞 {assignedOrg.mobile || assignedOrg.phone}</div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="fw-bold text-dark">{camp.organizerName || "Unassigned"}</div>
+                                <div className="text-muted small">📞 {camp.organizerContact || "N/A"}</div>
+                              </>
+                            )}
+                          </td>
+                          <td>
+                            <span className="badge bg-danger rounded-pill px-3 py-2">
+                              {camp.donorCount || 0}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="d-flex flex-wrap gap-2">
+                              <button
+                                className="btn btn-outline-danger btn-sm"
+                                onClick={() => {
+                                  setSelectedCamp(camp._id);
+                                  setCurrentView("users");
+                                }}
+                              >
+                                View Donors
+                              </button>
+                              <button className="btn btn-sm btn-light border" onClick={() => handleEditCampClick(camp)}>✏️</button>
+                              <button className="btn btn-sm btn-light border text-danger" onClick={() => handleDeleteCamp(camp._id)}>🗑️</button>
+                              <button
+                                className="btn btn-sm btn-primary"
+                                onClick={() => {
+                                  if (past) return;
+                                  const link = `${window.location.origin}/register-camp?campId=${camp._id}`;
+                                  navigator.clipboard.writeText(link);
+                                  toast.success("Registration link copied to clipboard!");
+                                }}
+                                disabled={past}
+                                title="Copy Registration Link"
+                              >
+                                🔗
+                              </button>
                             </div>
-                          </div>
-                          <span className="badge bg-danger rounded-pill">
-                            Donors: {camp.donorCount || 0}
-                          </span>
-                        </div>
 
-                        <div className="card-body pt-0">
-                          <div className="mb-3 p-2 bg-light rounded border-start border-4 border-primary">
-                            <small className="text-muted text-uppercase fw-bold" style={{ fontSize: "0.7rem" }}>
-                              Assigned Organizer
-                            </small>
-                            <div className="d-flex flex-column">
-                              {assignedOrg ? (
-                                <>
-                                  <span className="fw-bold text-primary">{assignedOrg.name}</span>
-                                  <small className="text-muted">📞 {assignedOrg.phone}</small>
-                                </>
-                              ) : (
-                                <>
-                                  <span className="fw-bold text-dark">{camp.organizerName || "Unassigned"}</span>
-                                  <small className="text-muted">📞 {camp.organizerContact || "N/A"}</small>
-                                </>
-                              )}
-                            </div>
-                          </div>
-
-                          <p className="card-text small text-secondary">
-                            <strong>📍 Location:</strong> {camp.location || "N/A"} <br />
-                            <strong>🏥 Hospital:</strong> {camp.hospitalName || "N/A"} <br />
-                            <strong>👤 PRO:</strong> {camp.proName || "N/A"}
-                          </p>
-
-                          <div className="d-flex flex-wrap gap-2 mt-3">
-                            <button
-                              className="btn btn-outline-danger btn-sm flex-grow-1"
-                              onClick={() => {
-                                setSelectedCamp(camp._id);
-                                setCurrentView("users");
-                              }}
-                            >
-                              View Donors
-                            </button>
-
-                            <button className="btn btn-sm btn-light border" onClick={() => handleEditCampClick(camp)}>✏️</button>
-                            <button className="btn btn-sm btn-light border text-danger" onClick={() => handleDeleteCamp(camp._id)}>🗑️</button>
-
-                            <button
-                              className="btn btn-sm btn-primary"
-                              onClick={() => {
-                                if (past) return;
-                                const link = `${window.location.origin}/register-camp?campId=${camp._id}`;
-                                navigator.clipboard.writeText(link);
-                                alert("✅ Registration link copied to clipboard!");
-                              }}
-                              disabled={past}
-                            >
-                              🔗
-                            </button>
-                          </div>
-
-                          {editCampId === camp._id && (
-                            <div className="mt-3 border rounded p-3 bg-light shadow-sm position-absolute top-0 start-0 w-100 h-100 bg-white" style={{ zIndex: 10, overflowY: 'auto' }}>
-                              <h6 className="text-primary fw-bold mb-3">Edit Camp Details</h6>
-                              <div className="row g-2">
-                                {[
-                                  ["name", "Camp Name"],
-                                  ["location", "Location"],
-                                  ["date", "Date"],
-                                  ["organizerName", "Org. Name (Manual)"],
-                                  ["organizerContact", "Org. Contact (Manual)"],
-                                  ["proName", "PRO Name"],
-                                  ["hospitalName", "Hospital Name"],
-                                ].map(([key, label]) => (
-                                  <div className="col-12" key={key}>
-                                    <label className="form-label small mb-0 fw-bold text-muted">{label}</label>
-                                    <input
-                                      className="form-control form-control-sm"
-                                      name={key}
-                                      type={key === "date" ? "date" : "text"}
-                                      value={editCampForm[key] || ""}
-                                      onChange={handleEditCampChange}
-                                    />
-                                  </div>
-                                ))}
+                            {editCampId === camp._id && (
+                              <div className="mt-3 border rounded p-3 bg-light shadow-sm position-absolute" style={{ zIndex: 10, minWidth: '300px', right: '50px' }}>
+                                <h6 className="text-primary fw-bold mb-3">Edit Camp Details</h6>
+                                <div className="row g-2">
+                                  {[
+                                    ["name", "Camp Name"],
+                                    ["location", "Location"],
+                                    ["date", "Date"],
+                                    ["organizerName", "Org. Name (Manual)"],
+                                    ["organizerContact", "Org. Contact (Manual)"],
+                                    ["proName", "PRO Name"],
+                                    ["hospitalName", "Hospital Name"],
+                                  ].map(([key, label]) => (
+                                    <div className="col-12" key={key}>
+                                      <label className="form-label small mb-0 fw-bold text-muted">{label}</label>
+                                      <input
+                                        className="form-control form-control-sm"
+                                        name={key}
+                                        type={key === "date" ? "date" : "text"}
+                                        value={editCampForm[key] || ""}
+                                        onChange={handleEditCampChange}
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                                <div className="d-flex gap-2 mt-3">
+                                  <button className="btn btn-sm btn-success flex-grow-1" onClick={() => handleEditCampSave(camp._id)}>Save Changes</button>
+                                  <button className="btn btn-sm btn-secondary" onClick={() => setEditCampId(null)}>Cancel</button>
+                                </div>
                               </div>
-
-                              <div className="d-flex gap-2 mt-3">
-                                <button className="btn btn-sm btn-success flex-grow-1" onClick={() => handleEditCampSave(camp._id)}>
-                                  Save Changes
-                                </button>
-                                <button className="btn btn-sm btn-secondary" onClick={() => setEditCampId(null)}>
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
@@ -1743,7 +1820,7 @@ const Admin = () => {
                     value={selectedCamp || ""}
                     onChange={(e) => setSelectedCamp(e.target.value)}
                   >
-                    <option value="">-- Select Camp --</option>
+                    <option value="all">-- All Donors (All Camps) --</option>
                     {camps.map((c) => (
                       <option key={c._id} value={c._id}>
                         {c.name}
@@ -2058,7 +2135,7 @@ const Admin = () => {
                 <h2 className="text-3xl font-black text-slate-800 font-cinzel mb-2">Emergency Blood Requests</h2>
                 <p className="text-slate-500 font-medium">Manage and update status of blood requests</p>
               </div>
-              <button 
+              <button
                 onClick={fetchBloodRequests}
                 className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-bold shadow-sm hover:bg-slate-50 transition-colors flex items-center gap-2"
               >
@@ -2085,9 +2162,8 @@ const Admin = () => {
                         <span className="text-sm font-bold bg-slate-100 text-slate-600 px-3 py-1 rounded-full border border-slate-200">
                           ID: {req.requestId}
                         </span>
-                        <span className={`text-sm font-bold px-3 py-1 rounded-full border ${
-                          req.urgency === 'urgent' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-blue-50 text-blue-600 border-blue-200'
-                        }`}>
+                        <span className={`text-sm font-bold px-3 py-1 rounded-full border ${req.urgency === 'urgent' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-blue-50 text-blue-600 border-blue-200'
+                          }`}>
                           {req.urgency === 'urgent' ? '🚨 Urgent' : '📅 Planned'}
                         </span>
                         <span className="text-sm font-bold bg-amber-50 text-amber-600 px-3 py-1 rounded-full border border-amber-200">
@@ -2097,7 +2173,7 @@ const Admin = () => {
                           {new Date(req.createdAt).toLocaleString()}
                         </span>
                       </div>
-                      
+
                       <div>
                         <h3 className="text-xl font-bold text-slate-800">{req.patientName}</h3>
                         <p className="text-sm text-slate-500 font-medium">📍 {req.hospital}, {req.city}</p>
@@ -2115,32 +2191,31 @@ const Admin = () => {
 
                     <div className="w-full md:w-auto bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col gap-3 min-w-[200px]">
                       <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Status Control</div>
-                      
-                      <select 
+
+                      <select
                         value={req.status}
                         onChange={async (e) => {
                           const newStatus = e.target.value;
-                          if(window.confirm(`Change status to ${newStatus}?`)) {
+                          if (window.confirm(`Change status to ${newStatus}?`)) {
                             try {
                               await adminService.updateBloodRequestStatus(req.requestId, newStatus);
                               fetchBloodRequests();
-                              alert("Status updated!");
-                            } catch(err) {
-                              alert("Error updating status");
+                              toast.success("Status updated!");
+                            } catch (err) {
+                              toast.error("Error updating status");
                             }
                           }
                         }}
-                        className={`w-full p-2.5 rounded-lg border-2 font-bold text-sm outline-none cursor-pointer appearance-none ${
-                          req.status === 'pending' ? 'border-amber-200 bg-amber-50 text-amber-700 focus:border-amber-400' :
-                          req.status === 'active' ? 'border-blue-200 bg-blue-50 text-blue-700 focus:border-blue-400' :
-                          'border-green-200 bg-green-50 text-green-700 focus:border-green-400'
-                        }`}
+                        className={`w-full p-2.5 rounded-lg border-2 font-bold text-sm outline-none cursor-pointer appearance-none ${req.status === 'pending' ? 'border-amber-200 bg-amber-50 text-amber-700 focus:border-amber-400' :
+                            req.status === 'active' ? 'border-blue-200 bg-blue-50 text-blue-700 focus:border-blue-400' :
+                              'border-green-200 bg-green-50 text-green-700 focus:border-green-400'
+                          }`}
                       >
                         <option value="pending">⏳ Pending Review</option>
                         <option value="active">📡 Active (Notifying Donors)</option>
                         <option value="fulfilled">✅ Fulfilled</option>
                       </select>
-                      
+
                       <div className="text-[10px] text-slate-400 font-medium text-center">
                         Changes reflect live for the recipient
                       </div>
@@ -2234,11 +2309,16 @@ const Admin = () => {
                               <span className="badge bg-primary">Total Camps: {org.camps?.length || 0}</span>
                             </div>
                             {org.camps && org.camps.length > 0 ? (
-                              <ul className="list-group list-group-flush small bg-transparent">
+                              <ul className="list-unstyled mb-0 small">
                                 {org.camps.map((camp) => (
-                                  <li key={camp._id} className="list-group-item p-1 bg-transparent border-0 text-white">
-                                    ● {camp.name} ({new Date(camp.date).toLocaleDateString()})
-                                    <div className="text-muted small ps-3">📍 {camp.location}</div>
+                                  <li key={camp._id} className="mb-2 pb-2 border-bottom">
+                                    <div className="fw-bold text-dark mb-1">
+                                      🏕️ {camp.title || camp.name || camp.campId}
+                                    </div>
+                                    <div className="d-flex align-items-center text-muted flex-wrap gap-2">
+                                      <span>📅 {camp.date ? new Date(camp.date).toLocaleDateString() : "No date"}</span>
+                                      <span>📍 {camp.location || camp.venue || "No location"}</span>
+                                    </div>
                                   </li>
                                 ))}
                               </ul>
@@ -2403,6 +2483,13 @@ const Admin = () => {
           </div>
         )}
 
+        {/* --- 9. Blood Request Background Tab View --- */}
+        {currentView === "blood-request-background" && (
+          <div className="dashboard-details-grid pt-4">
+            <BloodRequestBackgroundAdmin />
+          </div>
+        )}
+
         <footer className="copyright-footer">
           © 2026 LifeDrop Admin Dashboard. All rights reserved.
         </footer>
@@ -2414,7 +2501,7 @@ const Admin = () => {
           <div className="premium-modal-content">
             <button className="modal-close-btn" onClick={() => setShowAddCampModal(false)}>×</button>
             <h4 className="text-danger fw-bold mb-4">Add New Donation Camp</h4>
-            
+
             <form onSubmit={handleNewCampSubmit} className="dark-form d-flex flex-column gap-3">
               <div className="row g-3">
                 <div className="col-md-6">
@@ -2512,7 +2599,7 @@ const Admin = () => {
           <div className="premium-modal-content">
             <button className="modal-close-btn" onClick={() => setEditingEnquiry(null)}>×</button>
             <h4 className="text-danger fw-bold mb-4">Edit Enquiry Details</h4>
-            
+
             <form onSubmit={(e) => { e.preventDefault(); saveEditEnquiry(); }} className="dark-form d-flex flex-column gap-3">
               <div className="row g-2">
                 <div className="col-md-6">
@@ -2562,7 +2649,7 @@ const Admin = () => {
             <button className="modal-close-btn" onClick={() => setResetEnquiryModal(null)}>×</button>
             <h4 className="text-danger fw-bold mb-3">🔑 Set New Password</h4>
             <p className="small text-muted mb-3">Organizer: <strong>{resetEnquiryModal.organizerName}</strong></p>
-            
+
             <div className="dark-form d-flex flex-column gap-3">
               <input
                 type="text"

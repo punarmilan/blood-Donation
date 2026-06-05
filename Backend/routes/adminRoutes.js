@@ -115,6 +115,18 @@ router.get("/organizers", verifyToken, async (req, res) => {
 });
 
 /* ======================================================
+   ADMIN: GET TOTAL USERS COUNT
+====================================================== */
+router.get("/users/count", verifyToken, async (req, res) => {
+  try {
+    const count = await User.countDocuments();
+    res.json({ count });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to count users", error: err.message });
+  }
+});
+
+/* ======================================================
    ADMIN: GET ALL BLOOD REQUESTS
 ====================================================== */
 router.get("/blood-requests", verifyToken, async (req, res) => {
