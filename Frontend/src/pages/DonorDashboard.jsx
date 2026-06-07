@@ -11,6 +11,7 @@ import dashboardImg from "../assets/dashbord.png";
 import { io } from "socket.io-client";
 import notificationService from "../services/notificationService";
 import api from "../services/api";
+import DonorHealthDetails from "../components/DonorHealthDetails";
 
 const Dashboard = () => {
   const { currentUser, logout, loading } = useAuth();
@@ -23,6 +24,7 @@ const Dashboard = () => {
     else if (tab === "my-certificates") setActiveTab("My Certificates");
     else if (tab === "emergency") setActiveTab("Emergency");
     else if (tab === "profile") setActiveTab("My Profile");
+    else if (tab === "health-details") setActiveTab("Health Details");
     else setActiveTab("Dashboard");
   }, [tab]);
 
@@ -31,6 +33,7 @@ const Dashboard = () => {
     else if (label === "My Certificates") navigate("/dashboard/my-certificates");
     else if (label === "Emergency") navigate("/dashboard/emergency");
     else if (label === "My Profile") navigate("/dashboard/profile");
+    else if (label === "Health Details") navigate("/dashboard/health-details");
     else navigate("/dashboard");
   };
   
@@ -38,6 +41,7 @@ const Dashboard = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showDropdown, setShowDropdown] = useState(false);
   const [activeRequests, setActiveRequests] = useState([]);
+  const [healthSummary, setHealthSummary] = useState(null);
   const socketRef = useRef(null);
 
   useEffect(() => {
@@ -50,6 +54,7 @@ const Dashboard = () => {
     if (currentUser) {
       fetchNotifications();
       fetchActiveRequests();
+      fetchHealthSummary();
 
       // Setup socket
       const socketUrl = import.meta.env.VITE_SOCKET_URL || "/";
@@ -89,6 +94,17 @@ const Dashboard = () => {
     }
   };
 
+  const fetchHealthSummary = async () => {
+    try {
+      const res = await api.get("/donor/health");
+      if (res.data.success && res.data.data && res.data.data.health) {
+        setHealthSummary(res.data.data.health);
+      }
+    } catch (err) {
+      console.error("Failed to fetch health summary", err);
+    }
+  };
+
   const markAsRead = async (id) => {
     try {
       await notificationService.markAsRead(id);
@@ -113,6 +129,7 @@ const Dashboard = () => {
 
   const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard" },
+    { icon: Activity, label: "Health Details" },
     { icon: Droplet, label: "My Donations" },
     { icon: FileText, label: "My Certificates" },
     { icon: AlertCircle, label: "Emergency", badge: activeRequests.length },
@@ -139,6 +156,8 @@ const Dashboard = () => {
 
   const renderContent = () => {
     switch (activeTab) {
+      case "Health Details":
+        return <DonorHealthDetails currentUser={currentUser} onUpdate={fetchHealthSummary} />;
       case "My Profile":
         return (
           <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
@@ -349,6 +368,58 @@ const Dashboard = () => {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* HEALTH PROFILE SUMMARY CARD */}
+              <div className="bg-white border border-gray-100 rounded-2xl p-5 sm:p-6 shadow-sm mb-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
+                    <Activity size={16} className="text-[#E74C3C]" /> Health Profile
+                  </h3>
+                  <button 
+                    onClick={() => handleTabChange("Health Details")}
+                    className="text-[11px] font-bold text-[#E74C3C] hover:underline bg-red-50 px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    Update Details
+                  </button>
+                </div>
+
+                {!healthSummary || Object.keys(healthSummary).length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-6 text-center">
+                    <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center mb-3 border border-red-100">
+                      <Activity size={20} className="text-red-500" />
+                    </div>
+                    <p className="text-gray-900 font-bold mb-1">Complete your health profile</p>
+                    <p className="text-gray-500 text-xs max-w-sm mb-4">Add your physical vitals and blood profile to keep your donor status up to date.</p>
+                    <button 
+                      onClick={() => handleTabChange("Health Details")}
+                      className="px-5 py-2 bg-[#E74C3C] hover:bg-red-700 text-white text-xs font-bold rounded-lg transition-colors"
+                    >
+                      Complete Profile
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                      <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide mb-1">BMI</p>
+                      <p className="text-lg font-bold text-gray-900">{healthSummary.bmi || '-'}</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                      <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide mb-1">Hemoglobin</p>
+                      <p className="text-lg font-bold text-gray-900">{healthSummary.hemoglobinLevel || '-'} <span className="text-[10px] font-medium text-gray-500">g/dL</span></p>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                      <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide mb-1">Weight</p>
+                      <p className="text-lg font-bold text-gray-900">{healthSummary.weight || '-'} <span className="text-[10px] font-medium text-gray-500">kg</span></p>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                      <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide mb-1">Last Updated</p>
+                      <p className="text-xs font-bold text-gray-900 mt-1">
+                        {healthSummary.updatedAt ? new Date(healthSummary.updatedAt).toLocaleDateString() : '-'}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
         </div>

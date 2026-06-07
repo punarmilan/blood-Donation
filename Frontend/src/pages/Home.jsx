@@ -4,7 +4,7 @@ import WhyDonateSection from "../components/WhyDonateSection";
 import DarkInfoSection from "../components/DarkInfoSection";
 import {
   Heart, Users, QrCode, Calendar, Award, Shield, Clock,
-  CheckCircle, Activity, Zap, TrendingUp, Star, BadgeCheck, ThumbsUp,
+  CheckCircle, Activity, Zap, TrendingUp, Star, BadgeCheck, ThumbsUp, Tent
 } from "lucide-react";
 
 const StarRating = () => (
@@ -261,16 +261,29 @@ const Home = () => {
               </button>
             </div>
 
-            {/* Stats */}
-            <div className="flex gap-8 flex-wrap">
+            {/* Unique Stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8 w-full max-w-[900px]">
               {[
-                { label: "Active Donors", value: countDonors.toLocaleString() + "+" },
-                { label: "Lives Saved", value: countLives.toLocaleString() + "+" },
-                { label: "Camps Organized", value: countCamps + "+" },
-              ].map(({ label, value }) => (
-                <div key={label}>
-                  <div className={`text-2xl font-black ${isCustomBg ? "text-white" : "text-[#0f172a]"}`}>{value}</div>
-                  <div className={`text-sm font-medium ${isCustomBg ? "text-white/70" : "text-slate-500"}`}>{label}</div>
+                { label: "Active Donors", value: countDonors.toLocaleString() + "+", icon: <Users size={24} className={isCustomBg ? "text-red-400" : "text-red-500"} />, lightBg: "bg-red-50 border-red-100", darkBg: "bg-black/30 border-red-500/20", iconBgLight: "bg-white shadow-sm", iconBgDark: "bg-red-500/20" },
+                { label: "Lives Saved", value: countLives.toLocaleString() + "+", icon: <Activity size={24} className={isCustomBg ? "text-blue-400" : "text-blue-500"} />, lightBg: "bg-blue-50 border-blue-100", darkBg: "bg-black/30 border-blue-500/20", iconBgLight: "bg-white shadow-sm", iconBgDark: "bg-blue-500/20" },
+                { label: "Camps Organized", value: countCamps + "+", icon: <Tent size={24} className={isCustomBg ? "text-green-400" : "text-green-500"} />, lightBg: "bg-green-50 border-green-100", darkBg: "bg-black/30 border-green-500/20", iconBgLight: "bg-white shadow-sm", iconBgDark: "bg-green-500/20" },
+              ].map(({ label, value, icon, lightBg, darkBg, iconBgLight, iconBgDark }) => (
+                <div 
+                  key={label} 
+                  className={`relative overflow-hidden flex items-center gap-4 px-4 py-4 rounded-2xl border backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl group
+                    ${isCustomBg ? darkBg : lightBg}
+                  `}
+                >
+                  {/* Subtle hover glow */}
+                  <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition duration-500 pointer-events-none" />
+                  
+                  <div className={`p-3 rounded-full flex-shrink-0 ${isCustomBg ? iconBgDark : iconBgLight}`}>
+                    {icon}
+                  </div>
+                  <div className="flex flex-col">
+                    <div className={`text-2xl md:text-3xl font-black tracking-tight ${isCustomBg ? "text-white drop-shadow-md" : "text-gray-900"}`}>{value}</div>
+                    <div className={`text-[10px] sm:text-xs font-bold uppercase tracking-wider mt-0.5 ${isCustomBg ? "text-white/80" : "text-gray-500"}`}>{label}</div>
+                  </div>
                 </div>
               ))}
             </div>

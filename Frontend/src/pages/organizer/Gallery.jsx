@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Tent, FileText, Image as ImageIcon, Users, LogOut, KeyRound, Droplet, Download } from 'lucide-react';
+import { LayoutDashboard, Tent, FileText, Image as ImageIcon, Users, LogOut, KeyRound, Droplet, Download, X } from 'lucide-react';
 import organizerService from '../../services/organizerService';
 
 const Gallery = () => {
   const [completedCamps, setCompletedCamps] = useState([]);
   const [selectedCampId, setSelectedCampId] = useState('all');
   const [loading, setLoading] = useState(true);
+  const [selectedImage, setSelectedImage] = useState(null);
   
   const user = JSON.parse(localStorage.getItem('user')) || {};
   const navigate = useNavigate();
@@ -138,7 +139,11 @@ const Gallery = () => {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mt-8">
               {photosToShow.map((photo, i) => (
-                <div key={i} className="group relative aspect-square rounded-2xl overflow-hidden bg-gray-100 border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300">
+                <div 
+                  key={i} 
+                  className="group relative aspect-square rounded-2xl overflow-hidden bg-gray-100 border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer"
+                  onClick={() => setSelectedImage(photo)}
+                >
                   {/* Image */}
                   <img 
                     src={photo.url} 
@@ -171,6 +176,46 @@ const Gallery = () => {
           )}
         </div>
       </main>
+
+      {/* FULLSCREEN IMAGE MODAL */}
+      {selectedImage && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm"
+          onClick={() => setSelectedImage(null)}
+        >
+          <button 
+            className="absolute top-6 right-6 text-white hover:text-red-400 transition bg-white/10 hover:bg-white/20 p-2 rounded-full"
+            onClick={(e) => { e.stopPropagation(); setSelectedImage(null); }}
+          >
+            <X className="w-6 h-6" />
+          </button>
+          
+          <img 
+            src={selectedImage.url} 
+            alt="Camp Full" 
+            className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+          
+          <div className="absolute bottom-8 left-0 right-0 text-center pointer-events-none">
+            <p className="text-white font-bold text-xl drop-shadow-md">{selectedImage.campTitle}</p>
+            <p className="text-gray-300 text-sm mt-1 drop-shadow-md">{new Date(selectedImage.campDate).toLocaleDateString()}</p>
+          </div>
+          
+          <a 
+            href={selectedImage.url} 
+            download
+            target="_blank" 
+            rel="noreferrer"
+            className="absolute bottom-8 right-8 bg-white/20 backdrop-blur-md px-4 py-2 rounded-full text-white hover:bg-white hover:text-gray-900 transition flex items-center gap-2 font-medium shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Download className="w-5 h-5" />
+            <span className="hidden md:inline">Download</span>
+          </a>
+        </div>
+      )}
+
     </div>
   );
 };

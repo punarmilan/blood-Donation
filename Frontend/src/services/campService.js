@@ -14,13 +14,19 @@ const campService = {
     return res.data;
   },
   updateCamp: async (id, data) => {
-    const res = await api.put(`/camps/${id}`, data);
-    return res.data;
+    const response = await api.put(`/camps/${id}`, data);
+    return response.data;
   },
   deleteCamp: async (id) => {
-    const res = await api.delete(`/camps/${id}`);
-    return res.data;
+    const response = await api.delete(`/camps/${id}`);
+    return response.data;
   },
+  uploadCampPhotos: async (id, formData) => {
+    const response = await api.post(`/camps/${id}/photos`, formData, {
+      headers: { "Content-Type": "multipart/form-data" }
+    });
+    return response.data;
+  }
 };
 
 export default campService;

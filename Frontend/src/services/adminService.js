@@ -53,6 +53,30 @@ const adminService = {
     const res = await api.patch(`/admin/blood-requests/${id}/status`, { status });
     return res.data;
   },
+  getBloodBanks: async () => {
+    const res = await api.get("/blood-banks/admin/all");
+    return res.data.data;
+  },
+  createBloodBank: async (data) => {
+    const res = await api.post("/blood-banks/admin", data);
+    return res.data;
+  },
+  updateBloodBank: async (id, data) => {
+    const res = await api.put(`/blood-banks/admin/${id}`, data);
+    return res.data;
+  },
+  deleteBloodBank: async (id) => {
+    const res = await api.delete(`/blood-banks/admin/${id}`);
+    return res.data;
+  },
+  toggleBloodBankStatus: async (id) => {
+    const res = await api.patch(`/blood-banks/admin/${id}/status`);
+    return res.data;
+  },
+  geocodeAddress: async (address) => {
+    const res = await api.post("/blood-banks/admin/geocode", { address });
+    return res.data;
+  },
 };
 
 export default adminService;

@@ -33,6 +33,7 @@ import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
 import AdminOrganizers from "./pages/AdminOrganizers";
 import CampRegistration from "./pages/public/CampRegistration";
+import BloodBanks from "./pages/BloodBanks";
 
 import OrganizerDashboard from "./pages/organizer/Dashboard";
 import CampDetail from "./pages/organizer/CampDetail";
@@ -83,6 +84,7 @@ const Layout = () => {
         <Route path="/register-camp" element={<DonorRegistration />} />
         <Route path="/register-camp/:campName" element={<DonorRegistration />} />
         <Route path="/camps/:campId" element={<CampRegistration />} />
+        <Route path="/blood-banks" element={<BloodBanks />} />
 
         {/* Firebase Auth flow */}     
         <Route path="/register" element={<OtpRegister />} />

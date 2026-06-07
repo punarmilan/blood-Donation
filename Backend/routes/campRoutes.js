@@ -182,6 +182,7 @@ router.put("/:id", verifyToken, async (req, res) => {
       "organizerContact",
       "proName",
       "hospitalName",
+      "status"
     ];
 
     const payload = {};
@@ -372,6 +373,35 @@ router.patch("/:campId/complete", verifyToken, upload.array("photos", 10), async
     res.json({ success: true, message: "Camp marked complete" });
   } catch (err) {
     console.error("Camp Complete Error:", err);
+    res.status(500).json({ success: false, message: "Server error", error: err.message });
+  }
+});
+
+/* ======================================================
+   8. UPLOAD CAMP PHOTOS
+====================================================== */
+router.post("/:campId/photos", verifyToken, upload.array("photos", 10), async (req, res) => {
+  try {
+    const { campId } = req.params;
+    
+    // Support either _id or campId string
+    const query = mongoose.Types.ObjectId.isValid(campId) ? { _id: campId } : { campId: campId };
+    const camp = await Camp.findOne(query);
+    
+    if (!camp) return res.status(404).json({ success: false, message: "Camp not found" });
+
+    const photoUrls = req.files ? req.files.map(file => file.path) : [];
+    
+    if (photoUrls.length === 0) {
+       return res.status(400).json({ success: false, message: "No photos uploaded" });
+    }
+
+    camp.photos = [...(camp.photos || []), ...photoUrls];
+    await camp.save();
+
+    res.json({ success: true, message: "Photos uploaded successfully", photos: camp.photos });
+  } catch (err) {
+    console.error("Upload Camp Photos Error:", err);
     res.status(500).json({ success: false, message: "Server error", error: err.message });
   }
 });

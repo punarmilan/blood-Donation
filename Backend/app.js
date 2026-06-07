@@ -26,6 +26,8 @@ import notificationRoutes from "./routes/notificationRoutes.js";
 import waRoutes from "./routes/waRoutes.js";
 import publicRoutes from "./routes/publicRoutes.js";
 import bloodRequestBackgroundRoutes from "./routes/bloodRequestBackgroundRoutes.js";
+import bloodBankRoutes from "./routes/bloodBankRoutes.js";
+import donorHealthRoutes from "./routes/donorHealthRoutes.js";
 import { connectToWhatsApp } from "./whatsapp/waClient.js";
 
 const app = express();
@@ -152,6 +154,8 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/wa", waRoutes);
 app.use("/api/public", publicRoutes);
 app.use("/api/blood-request-background", bloodRequestBackgroundRoutes);
+app.use("/api/blood-banks", bloodBankRoutes);
+app.use("/api/donor/health", donorHealthRoutes);
 
 // SERVE FRONTEND IN PRODUCTION (Hostinger Ready)
 const frontendPath = path.join(__dirname, "../Frontend/dist");

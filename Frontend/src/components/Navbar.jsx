@@ -40,13 +40,11 @@ export default function Navbar() {
       { to: "/", label: "Home" },
       { to: "/about", label: "About Us" },
       { to: "/services", label: "Services" },
+      { to: "/blood-banks", label: "Blood Banks" },
       // { to: "/register", label: "Donor Registration" },
       { to: "/organizer-enquiry", label: "Organizer Enquiry" },
-      ...(orgToken
-        ? [{ to: "/organizer-dashboard", label: "Organizer" }]
-        : [{ to: "/organizer-login", label: "Organizer" }]),
     ];
-  }, [orgToken]);
+  }, []);
 
   const adminItem = useMemo(() => {
     return adminToken

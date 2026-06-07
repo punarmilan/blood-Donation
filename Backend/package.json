@@ -24,6 +24,7 @@
     "helmet": "^8.1.0",
     "is-extglob": "^2.1.1",
     "jsonwebtoken": "^9.0.3",
+    "leaflet": "^1.9.4",
     "mongoose": "^8.19.2",
     "morgan": "^1.10.1",
     "multer": "^2.1.1",
@@ -32,6 +33,7 @@
     "nodemon": "^3.1.4",
     "pino": "^10.3.1",
     "qrcode-terminal": "^0.12.0",
+    "react-leaflet": "^5.0.0",
     "socket.io": "^4.8.3"
   },
   "description": ""

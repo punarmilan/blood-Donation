@@ -5,6 +5,7 @@ import ImpactGalleryAdmin from "../components/ImpactGalleryAdmin.jsx";
 import SuccessStoriesAdmin from "../components/SuccessStoriesAdmin.jsx";
 import NewsAdmin from "../components/NewsAdmin.jsx";
 import BloodRequestBackgroundAdmin from "../components/BloodRequestBackgroundAdmin.jsx";
+import AdminBloodBanks from "../components/AdminBloodBanks.jsx";
 import adminService from "../services/adminService";
 import campService from "../services/campService";
 import donorService from "../services/donorService";
@@ -107,6 +108,12 @@ const Admin = () => {
   // --- Organizers Page States ---
   const [editOrganizerId, setEditOrganizerId] = useState(null);
   const [editOrganizerForm, setEditOrganizerForm] = useState({});
+
+  // --- Camp Photos States ---
+  const [photosCampId, setPhotosCampId] = useState(null);
+  const [photosCampObj, setPhotosCampObj] = useState(null);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  const [campPhotosFiles, setCampPhotosFiles] = useState(null);
 
   // --- UI/UX Customizer States ---
   const [homeBgType, setHomeBgType] = useState(() => localStorage.getItem("homeBgType") || "gradient");
@@ -489,6 +496,7 @@ const Admin = () => {
       organizerContact: camp.organizerContact || "",
       proName: camp.proName || "",
       hospitalName: camp.hospitalName || "",
+      status: camp.status || "upcoming",
     });
   };
 
@@ -774,6 +782,38 @@ const Admin = () => {
         </text>
       </svg>
     );
+  };
+
+  const handleManagePhotosClick = (camp) => {
+    setPhotosCampId(camp._id);
+    setPhotosCampObj(camp);
+    setCampPhotosFiles(null);
+  };
+
+  const handleCampPhotosUpload = async (e) => {
+    e.preventDefault();
+    if (!campPhotosFiles || campPhotosFiles.length === 0) return toast.error("Please select at least one photo");
+    
+    setUploadingPhotos(true);
+    try {
+      const formData = new FormData();
+      Array.from(campPhotosFiles).forEach(file => {
+        formData.append("photos", file);
+      });
+      
+      const res = await campService.uploadCampPhotos(photosCampId, formData);
+      if (res.success) {
+        toast.success("Photos uploaded successfully!");
+        setPhotosCampObj(prev => ({ ...prev, photos: res.photos }));
+        fetchCamps();
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || "Failed to upload photos");
+    } finally {
+      setUploadingPhotos(false);
+      setCampPhotosFiles(null);
+    }
   };
 
   return (
@@ -1314,6 +1354,13 @@ const Admin = () => {
             <span className="menu-item-icon">⛺</span> <span className="menu-item-text">Camps</span>
           </button>
           <button
+            className={`menu-item ${currentView === "blood-banks" ? "active" : ""}`}
+            onClick={() => setCurrentView("blood-banks")}
+            title="Blood Banks"
+          >
+            <span className="menu-item-icon">🏥</span> <span className="menu-item-text">Blood Banks</span>
+          </button>
+          <button
             className={`menu-item ${currentView === "users" ? "active" : ""}`}
             onClick={() => setCurrentView("users")}
             title="Donors (Users)"
@@ -1739,19 +1786,20 @@ const Admin = () => {
                             </span>
                           </td>
                           <td>
-                            <div className="d-flex flex-wrap gap-2">
-                              <button
-                                className="btn btn-outline-danger btn-sm"
-                                onClick={() => {
-                                  setSelectedCamp(camp._id);
-                                  setCurrentView("users");
-                                }}
-                              >
-                                View Donors
-                              </button>
-                              <button className="btn btn-sm btn-light border" onClick={() => handleEditCampClick(camp)}>✏️</button>
-                              <button className="btn btn-sm btn-light border text-danger" onClick={() => handleDeleteCamp(camp._id)}>🗑️</button>
-                              <button
+                              <div className="d-flex flex-wrap gap-2">
+                                <button
+                                  className="btn btn-outline-danger btn-sm"
+                                  onClick={() => {
+                                    setSelectedCamp(camp._id);
+                                    setCurrentView("users");
+                                  }}
+                                >
+                                  View Donors
+                                </button>
+                                <button className="btn btn-sm btn-light border" onClick={() => handleManagePhotosClick(camp)} title="Manage Photos">📸</button>
+                                <button className="btn btn-sm btn-light border" onClick={() => handleEditCampClick(camp)} title="Edit Camp">✏️</button>
+                                <button className="btn btn-sm btn-light border text-danger" onClick={() => handleDeleteCamp(camp._id)} title="Delete Camp">🗑️</button>
+                                <button
                                 className="btn btn-sm btn-primary"
                                 onClick={() => {
                                   if (past) return;
@@ -1790,6 +1838,20 @@ const Admin = () => {
                                       />
                                     </div>
                                   ))}
+                                  <div className="col-12">
+                                    <label className="form-label small mb-0 fw-bold text-muted">Status</label>
+                                    <select
+                                      className="form-select form-select-sm"
+                                      name="status"
+                                      value={editCampForm.status || "upcoming"}
+                                      onChange={handleEditCampChange}
+                                    >
+                                      <option value="upcoming">Upcoming</option>
+                                      <option value="ongoing">Ongoing</option>
+                                      <option value="completed">Completed</option>
+                                      <option value="cancelled">Cancelled</option>
+                                    </select>
+                                  </div>
                                 </div>
                                 <div className="d-flex gap-2 mt-3">
                                   <button className="btn btn-sm btn-success flex-grow-1" onClick={() => handleEditCampSave(camp._id)}>Save Changes</button>
@@ -1805,6 +1867,56 @@ const Admin = () => {
                 </table>
               </div>
             )}
+
+            {/* --- Camp Photos Modal --- */}
+            {photosCampId && photosCampObj && (
+              <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                <div className="modal-dialog modal-lg modal-dialog-centered">
+                  <div className="modal-content border-0 shadow-lg" style={{ borderRadius: '16px' }}>
+                    <div className="modal-header border-0 pb-0">
+                      <h5 className="modal-title fw-bold">Manage Camp Photos</h5>
+                      <button type="button" className="btn-close" onClick={() => setPhotosCampId(null)}></button>
+                    </div>
+                    <div className="modal-body">
+                      <p className="text-muted small mb-4">Camp: <strong>{photosCampObj.name || photosCampObj.title}</strong></p>
+                      
+                      {/* Existing Photos Grid */}
+                      <h6 className="fw-bold mb-3">Uploaded Photos ({photosCampObj.photos?.length || 0})</h6>
+                      {photosCampObj.photos && photosCampObj.photos.length > 0 ? (
+                        <div className="d-flex flex-wrap gap-3 mb-4">
+                          {photosCampObj.photos.map((url, idx) => (
+                            <img key={idx} src={url} alt="Camp" style={{ width: '120px', height: '120px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #dee2e6' }} />
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-muted small mb-4">No photos uploaded yet.</p>
+                      )}
+
+                      {/* Upload Form */}
+                      <div className="p-4 bg-light rounded-3 border">
+                        <h6 className="fw-bold mb-3">Upload New Photos</h6>
+                        <form onSubmit={handleCampPhotosUpload}>
+                          <input 
+                            type="file" 
+                            className="form-control mb-3" 
+                            multiple 
+                            accept="image/*"
+                            onChange={(e) => setCampPhotosFiles(e.target.files)}
+                            disabled={uploadingPhotos}
+                          />
+                          <div className="text-end">
+                            <button type="submit" className="btn btn-primary px-4" disabled={uploadingPhotos || !campPhotosFiles}>
+                              {uploadingPhotos ? "Uploading..." : "Upload Photos"}
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
           </div>
         )}
 
@@ -2364,6 +2476,13 @@ const Admin = () => {
         {currentView === "success-stories" && (
           <div className="dashboard-details-grid pt-4">
             <SuccessStoriesAdmin />
+          </div>
+        )}
+
+        {/* --- Blood Banks Tab View --- */}
+        {currentView === "blood-banks" && (
+          <div className="dashboard-details-grid pt-4">
+            <AdminBloodBanks />
           </div>
         )}
 
