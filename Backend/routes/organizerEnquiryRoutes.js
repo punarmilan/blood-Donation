@@ -119,6 +119,23 @@ router.patch("/:id/approve", verifyToken, async (req, res) => {
     });
     await newCamp.save();
 
+    // Also save in legacy Organizer collection
+    const { default: Organizer } = await import("../models/Organizer.js");
+    let legacyOrganizer = await Organizer.findOne({ email: enquiry.email });
+    if (!legacyOrganizer) {
+      legacyOrganizer = new Organizer({
+        name: enquiry.organizerName,
+        email: enquiry.email,
+        phone: enquiry.phone,
+        password: hashedPassword,
+        camps: [newCamp._id]
+      });
+      await legacyOrganizer.save();
+    } else {
+      legacyOrganizer.camps.push(newCamp._id);
+      await legacyOrganizer.save();
+    }
+
     await enquiry.save();
 
     // Send Approval Email to Organizer

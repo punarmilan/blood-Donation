@@ -88,6 +88,7 @@ const Layout = () => {
         <Route path="/register" element={<OtpRegister />} />
         <Route path="/verify-otp" element={<OtpVerify />} />
         <Route path="/dashboard" element={<DonorDashboard />} />
+        <Route path="/dashboard/:tab" element={<DonorDashboard />} />
         <Route path="/blood-request" element={<BloodRequestForm />} />
         <Route path="/request-status/:requestId" element={<RequestStatus />} />
 

@@ -1,0 +1,31 @@
+/* Navbar.css */
+
+.dropdown-menu {
+  opacity: 0;
+  transform: translateY(-10px);
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.dropdown-menu.open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+  visibility: visible;
+}
+
+.mobile-dropdown {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 300ms ease-out, opacity 300ms ease-out;
+}
+
+.mobile-dropdown.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.mobile-dropdown > div {
+  overflow: hidden;
+}

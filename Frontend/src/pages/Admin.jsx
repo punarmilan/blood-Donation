@@ -2207,8 +2207,8 @@ const Admin = () => {
                           }
                         }}
                         className={`w-full p-2.5 rounded-lg border-2 font-bold text-sm outline-none cursor-pointer appearance-none ${req.status === 'pending' ? 'border-amber-200 bg-amber-50 text-amber-700 focus:border-amber-400' :
-                            req.status === 'active' ? 'border-blue-200 bg-blue-50 text-blue-700 focus:border-blue-400' :
-                              'border-green-200 bg-green-50 text-green-700 focus:border-green-400'
+                          req.status === 'active' ? 'border-blue-200 bg-blue-50 text-blue-700 focus:border-blue-400' :
+                            'border-green-200 bg-green-50 text-green-700 focus:border-green-400'
                           }`}
                       >
                         <option value="pending">⏳ Pending Review</option>

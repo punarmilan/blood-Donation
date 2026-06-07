@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Mail, Lock, LogIn } from "lucide-react";
+import { Mail, Lock, LogIn, Eye, EyeOff } from "lucide-react";
 import adminService from "../services/adminService";
 import donarBg from "../assets/donar.png";
 
@@ -9,6 +9,7 @@ const inputCls = "w-full pl-11 pr-4 py-3.5 bg-[#0e0e10]/90 border border-zinc-90
 const AdminLogin = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -108,13 +109,20 @@ const AdminLogin = () => {
                   <Lock className="h-5 w-5" />
                 </div>
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   className={inputCls}
                   placeholder="Password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-4 flex items-center text-zinc-500 hover:text-zinc-300 transition-colors bg-transparent border-none cursor-pointer"
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
               </div>
 
               {/* Submit Button */}
@@ -132,6 +140,20 @@ const AdminLogin = () => {
                   </>
                 )}
               </button>
+
+              {/* Go Back Button */}
+              <div className="mt-2 text-center">
+                <button
+                  type="button"
+                  onClick={() => navigate("/")}
+                  className="text-zinc-400 hover:text-white text-sm font-medium flex items-center justify-center gap-1.5 mx-auto transition-colors bg-transparent border-none cursor-pointer"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  Go Back to Home
+                </button>
+              </div>
             </form>
           </div>
         </div>

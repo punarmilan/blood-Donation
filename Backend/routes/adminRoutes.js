@@ -52,9 +52,9 @@ router.put("/organizers/:id", verifyToken, async (req, res) => {
     const { id } = req.params;
     const { name, phone, isActive } = req.body;
 
-    const updatedOrg = await Organizer.findByIdAndUpdate(
+    const updatedOrg = await User.findByIdAndUpdate(
       id,
-      { name, phone, isActive },
+      { name, mobile: phone, isActive },
       { new: true } // Return updated document
     );
 
@@ -81,7 +81,7 @@ router.delete("/organizers/:id", verifyToken, async (req, res) => {
 
     // Optional: Check if they have camps assigned before deleting?
     // For now, direct delete:
-    const deletedOrg = await Organizer.findByIdAndDelete(id);
+    const deletedOrg = await User.findByIdAndDelete(id);
 
     if (!deletedOrg)
       return res.status(404).json({ message: "Organizer not found" });
@@ -101,12 +101,20 @@ router.get("/organizers", verifyToken, async (req, res) => {
     // 1. Organizer.find() -> Sare organizers lao
     // 2. .select("-password") -> Password mat bhejo (security)
     // 3. .populate("camps") -> "camps" array ke IDs ko full camp data me convert karo
-    const organizers = await Organizer.find()
+    const organizers = await User.find({ role: "organizer" })
       .select("-password")
-      .populate("camps")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
+      
+    const camps = await Camp.find({ organizer: { $in: organizers.map(o => o._id) } }).lean();
+    
+    const organizersWithCamps = organizers.map(org => {
+      org.camps = camps.filter(c => c.organizer?.toString() === org._id.toString());
+      org.phone = org.mobile;
+      return org;
+    });
 
-    res.json(organizers);
+    res.json(organizersWithCamps);
   } catch (err) {
     res
       .status(500)
@@ -148,14 +156,14 @@ router.patch("/blood-requests/:id/status", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    
+
     const request = await BloodRequest.findOne({ requestId: id });
     if (!request) {
       return res.status(404).json({ message: "Request not found" });
     }
 
     request.status = status;
-    
+
     // Update timestamps based on status
     let newlyActivated = false;
     if (status === "active" && !request.donorsNotifiedAt) {
@@ -167,7 +175,7 @@ router.patch("/blood-requests/:id/status", verifyToken, async (req, res) => {
     }
 
     await request.save();
-    
+
     // If just activated, create notifications and emit socket events
     if (newlyActivated) {
       try {
@@ -198,7 +206,7 @@ router.patch("/blood-requests/:id/status", verifyToken, async (req, res) => {
               message: `${request.patientName} urgently needs ${request.bloodGroup} blood at ${request.hospital}, ${request.city}.`,
             });
           });
-          
+
           // Also mark these donors as notified in the request
           request.notifiedDonors = matchingDonors.map(d => d._id);
           await request.save();

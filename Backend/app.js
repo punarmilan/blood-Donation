@@ -10,6 +10,7 @@ import http from "http";
 import { initSocket } from "./socket.js";
 import connectDB from "./config/db.js";
 import { initializeAdmin } from "./models/Admin.js";
+import { createCloudinaryStorage } from "./config/cloudinary.js";
 
 import donorRoutes from "./routes/donorRoutes.js";
 import campRoutes from "./routes/campRoutes.js";
@@ -28,6 +29,7 @@ import bloodRequestBackgroundRoutes from "./routes/bloodRequestBackgroundRoutes.
 import { connectToWhatsApp } from "./whatsapp/waClient.js";
 
 const app = express();
+app.set("trust proxy", 1); // Trust reverse proxy to get correct protocol (https)
 const server = http.createServer(app);
 initSocket(server);
 
@@ -106,16 +108,8 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Multer Storage Configuration
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  },
-});
+// Multer Storage Configuration (Cloudinary)
+const storage = createCloudinaryStorage("blood_donation/admin_uploads");
 
 const upload = multer({ storage });
 
@@ -124,7 +118,8 @@ app.post("/api/admin/upload", upload.single("file"), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ success: false, message: "No file uploaded" });
   }
-  const fileUrl = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+  // req.file.path contains the Cloudinary URL
+  const fileUrl = req.file.path;
   res.json({ success: true, fileUrl, filename: req.file.filename });
 });
 

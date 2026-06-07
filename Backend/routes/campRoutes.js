@@ -2,6 +2,7 @@ import express from "express";
 import mongoose from "mongoose";
 import multer from "multer";
 import path from "path";
+import { createCloudinaryStorage } from "../config/cloudinary.js";
 import Camp from "../models/Camp.js";
 import Donor from "../models/Donor.js";
 import Organizer from "../models/Organizer.js";
@@ -99,12 +100,16 @@ router.get("/with-count", verifyToken, async (_req, res) => {
       .populate("organizer", "name mobile email")
       .sort({ date: 1 });
 
+    const { default: CampRegistration } = await import("../models/CampRegistration.js");
+
     const campsWithCounts = await Promise.all(
       camps.map(async (camp) => {
-        const donorCount = await Donor.countDocuments({
-          camp: camp._id,
+        const donorCount1 = await Donor.countDocuments({ camp: camp._id });
+        const donorCount2 = await CampRegistration.countDocuments({
+          $or: [{ camp: camp._id }, { campId: camp.campId }]
         });
-        return { ...camp.toObject(), donorCount };
+        
+        return { ...camp.toObject(), donorCount: donorCount1 + donorCount2 };
       })
     );
 
@@ -135,7 +140,13 @@ router.get("/:id", verifyToken, async (req, res) => {
       return res.status(404).json({ message: "Camp not found" });
     }
 
-    const donorCount = await Donor.countDocuments({ camp: camp._id });
+    const { default: CampRegistration } = await import("../models/CampRegistration.js");
+    const donorCount1 = await Donor.countDocuments({ camp: camp._id });
+    const donorCount2 = await CampRegistration.countDocuments({
+      $or: [{ camp: camp._id }, { campId: camp.campId }]
+    });
+
+    const donorCount = donorCount1 + donorCount2;
 
     res.json({ ...camp.toObject(), donorCount });
   } catch (err) {
@@ -265,15 +276,8 @@ router.delete("/:id", verifyToken, async (req, res) => {
 /* ======================================================
    7. MARK CAMP COMPLETE
 ====================================================== */
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/");
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + "-" + Math.round(Math.random() * 1E9) + path.extname(file.originalname));
-  }
-});
-const upload = multer({ storage: storage });
+const storage = createCloudinaryStorage("blood_donation/camps");
+const upload = multer({ storage });
 
 router.patch("/:campId/complete", verifyToken, upload.array("photos", 10), async (req, res) => {
   try {
@@ -300,7 +304,7 @@ router.patch("/:campId/complete", verifyToken, upload.array("photos", 10), async
       return res.status(400).json({ success: false, message: "Camp is already marked as completed" });
     }
 
-    const photoUrls = req.files ? req.files.map(file => `/uploads/${file.filename}`) : [];
+    const photoUrls = req.files ? req.files.map(file => file.path) : [];
 
     camp.status = "completed";
     camp.completedAt = new Date();

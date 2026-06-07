@@ -40,7 +40,7 @@ export default function QRPoster({ camp, onClose }) {
   const [downloading, setDownloading] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const posterRef = useRef(null);
-  const campUrl = `https://raktdaan.in/camps/${camp.campId || camp._id}`;
+  const campUrl = `https://blooddonation.store/camps/${camp.campId || camp._id}`;
   const slotsLeft = (camp.totalSlots || 100) - (camp.registeredCount || 0);
 
   useEffect(() => {
@@ -230,7 +230,7 @@ export default function QRPoster({ camp, onClose }) {
 
                   {/* URL box */}
                   <div style={{ background: '#f8f8f8', borderRadius: 6, padding: '6px 8px', marginTop: 2 }}>
-                    <p style={{ fontSize: 9, color: '#aaa', margin: 0, wordBreak: 'break-all', lineHeight: 1.4 }}>raktdaan.in/camps/{camp.campId || camp._id}</p>
+                    <p style={{ fontSize: 9, color: '#aaa', margin: 0, wordBreak: 'break-all', lineHeight: 1.4 }}>blooddonation.store/camps/{camp.campId || camp._id}</p>
                   </div>
                 </div>
 

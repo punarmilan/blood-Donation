@@ -171,4 +171,21 @@ router.post('/camp/:campId/register', async (req, res) => {
   }
 });
 
+// API to fetch all upcoming public camps
+router.get('/camps', async (req, res) => {
+  try {
+    const now = new Date();
+    // find camps that are either upcoming or active, where date is not past today's end
+    now.setHours(0,0,0,0);
+    const camps = await Camp.find({
+      date: { $gte: now },
+      status: { $nin: ['completed', 'cancelled'] }
+    }).sort({ date: 1 }).limit(10);
+    
+    res.json({ success: true, data: camps });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 export default router;

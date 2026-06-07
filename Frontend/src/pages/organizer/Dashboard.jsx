@@ -37,7 +37,7 @@ const OrganizerDashboard = () => {
   const completedCamps = camps.filter(c => c.status === 'completed');
   const upcomingCamps = camps.filter(c => c.status !== 'completed').sort((a, b) => new Date(a.date) - new Date(b.date));
   
-  const totalDonors = completedCamps.reduce((sum, c) => sum + (c.totalDonors || 0), 0);
+  const totalDonors = camps.reduce((sum, c) => sum + (c.totalDonors || c.registeredDonors?.length || 0), 0);
   const unitsCollected = completedCamps.reduce((sum, c) => sum + (c.totalUnitsCollected || 0), 0);
   const livesSaved = unitsCollected * 3;
 

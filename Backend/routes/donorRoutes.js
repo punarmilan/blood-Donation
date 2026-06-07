@@ -71,7 +71,25 @@ router.post('/', async (req, res) => {
 // Get all donors
 router.get('/', verifyToken, async (req, res) => {
   try {
-    const donors = await Donor.find().sort({ createdAt: -1 })
+    let donors = await Donor.find().lean()
+    
+    const { default: CampRegistration } = await import('../models/CampRegistration.js');
+    const campRegs = await CampRegistration.find().lean();
+    const formattedRegs = campRegs.map(reg => ({
+        _id: reg._id,
+        name: reg.name,
+        phone: reg.mobile,
+        bloodGroup: reg.bloodGroup,
+        age: reg.age,
+        weight: 0,
+        address: '',
+        remark: 'Public Registration',
+        createdAt: reg.createdAt,
+        camp: reg.camp
+    }));
+    donors = [...donors, ...formattedRegs];
+    donors.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    
     res.json(donors)
   } catch (err) {
     res.status(500).json({ message: 'Error fetching donors', error: err.message })
@@ -84,7 +102,33 @@ router.get('/camp/:campId', verifyToken, async (req, res) => {
     const { campId } = req.params
     if (!mongoose.Types.ObjectId.isValid(campId)) return res.status(400).json({ message: 'Invalid Camp ID' })
 
-    const donors = await Donor.find({ camp: campId }).sort({ name: 1 })
+    let donors = await Donor.find({ camp: campId }).lean()
+    
+    const { default: CampRegistration } = await import('../models/CampRegistration.js');
+    const Camp = (await import('../models/Camp.js')).default;
+    const camp = await Camp.findById(campId);
+    
+    if (camp) {
+      const campRegs = await CampRegistration.find({
+        $or: [{ camp: camp._id }, { campId: camp.campId }]
+      }).lean();
+      
+      const formattedRegs = campRegs.map(reg => ({
+        _id: reg._id,
+        name: reg.name,
+        phone: reg.mobile,
+        bloodGroup: reg.bloodGroup,
+        age: reg.age,
+        weight: 0,
+        address: '',
+        remark: 'Public Registration',
+        createdAt: reg.createdAt,
+        camp: camp._id
+      }));
+      donors = [...donors, ...formattedRegs];
+    }
+    
+    donors.sort((a, b) => a.name.localeCompare(b.name));
     res.json(donors)
   } catch (err) {
     res.status(500).json({ message: 'Error fetching donors', error: err.message })
@@ -97,7 +141,17 @@ router.put('/:id', verifyToken, async (req, res) => {
     const { id } = req.params
     if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: 'Invalid Donor ID' })
 
-    const donor = await Donor.findByIdAndUpdate(id, req.body, { new: true })
+    let donor = await Donor.findByIdAndUpdate(id, req.body, { new: true })
+    if (!donor) {
+      const { default: CampRegistration } = await import('../models/CampRegistration.js');
+      let updateData = { ...req.body };
+      if (updateData.phone) {
+        updateData.mobile = updateData.phone;
+        delete updateData.phone;
+      }
+      donor = await CampRegistration.findByIdAndUpdate(id, updateData, { new: true })
+    }
+    
     if (!donor) return res.status(404).json({ message: 'Donor not found' })
 
     res.json({ message: 'Donor updated successfully', donor })
@@ -112,7 +166,12 @@ router.delete('/:id', verifyToken, async (req, res) => {
     const { id } = req.params
     if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ message: 'Invalid Donor ID' })
 
-    const donor = await Donor.findByIdAndDelete(id)
+    let donor = await Donor.findByIdAndDelete(id)
+    if (!donor) {
+      const { default: CampRegistration } = await import('../models/CampRegistration.js');
+      donor = await CampRegistration.findByIdAndDelete(id);
+    }
+    
     if (!donor) return res.status(404).json({ message: 'Donor not found' })
 
     res.json({ message: 'Donor deleted successfully' })

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Heart, RefreshCw, Users, Star, Shield } from "lucide-react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -34,11 +35,7 @@ const whyDonateItems = [
     desc: "Get free health checkup with every donation.",
   },
 ];
-const upcomingCamps = [
-  { day: "20", month: "JUN", name: "Mega Blood Donation Camp", location: "Pune, Maharashtra", time: "10:00 AM – 4:00 PM" },
-  { day: "25", month: "JUN", name: "Corporate Blood Drive", location: "Hinjewadi, Pune", time: "11:00 AM – 5:00 PM" },
-  { day: "01", month: "JUL", name: "College Blood Donation Camp", location: "DY Patil College, Pune", time: "10:00 AM – 3:00 PM" },
-];
+
 
 const bloodAvailability = [
   { group: "O+", type: "Positive", status: "Available", statusColor: "status-available", units: "120 Units" },
@@ -50,6 +47,8 @@ const bloodAvailability = [
 
 export default function WhyDonateSection() {
   const sectionRef = useRef(null);
+  const navigate = useNavigate();
+  const [upcomingCamps, setUpcomingCamps] = useState([]);
   const [bloodRequests, setBloodRequests] = useState([
     { group: "O+", hospital: "Ruby Hospital, Pune", units: "2 Units", urgency: "Urgent", urgencyColor: "urgency-urgent" },
     { group: "B-", hospital: "City Care Hospital, Mumbai", units: "1 Unit", urgency: "Urgent", urgencyColor: "urgency-urgent" },
@@ -96,7 +95,29 @@ export default function WhyDonateSection() {
         console.error("Failed to fetch live blood requests", err);
       }
     };
+    const fetchUpcomingCamps = async () => {
+      try {
+        const res = await api.get("/public/camps");
+        if (res.data && res.data.data) {
+          const formattedCamps = res.data.data.map(camp => {
+            const d = new Date(camp.date);
+            return {
+              _id: camp._id || camp.campId,
+              day: d.getDate().toString().padStart(2, '0'),
+              month: d.toLocaleString('default', { month: 'short' }).toUpperCase(),
+              name: camp.title,
+              location: `${camp.venue}, ${camp.city}`,
+              time: `${camp.startTime} – ${camp.endTime}`
+            };
+          });
+          setUpcomingCamps(formattedCamps);
+        }
+      } catch (err) {
+        console.error("Failed to fetch upcoming camps", err);
+      }
+    };
     fetchActiveRequests();
+    fetchUpcomingCamps();
   }, []);
 
   useEffect(() => {
@@ -649,22 +670,30 @@ export default function WhyDonateSection() {
               <button className="view-all-btn">View All</button>
             </div>
             <div className="list-container">
-              {upcomingCamps.map((camp, idx) => (
-                <div key={idx} className="list-item">
-                  <div className="date-badge">
-                    <span className="date-badge-day">{camp.day}</span>
-                    <span className="date-badge-month">{camp.month}</span>
+              {upcomingCamps.length > 0 ? (
+                upcomingCamps.map((camp, idx) => (
+                  <div key={idx} className="list-item">
+                    <div className="date-badge">
+                      <span className="date-badge-day">{camp.day}</span>
+                      <span className="date-badge-month">{camp.month}</span>
+                    </div>
+                    <div className="item-details">
+                      <p className="item-title-top truncate" title={camp.name}>{camp.name}</p>
+                      <p className="item-subtitle-sub" title={camp.location}>{camp.location}</p>
+                      <p className="text-[10px] text-[#555] mt-0.5">{camp.time}</p>
+                    </div>
+                    <button className="premium-btn-register" onClick={() => navigate(`/camp/${camp._id}`)}>
+                      Register
+                    </button>
                   </div>
-                  <div className="item-details">
-                    <p className="item-title-top truncate" title={camp.name}>{camp.name}</p>
-                    <p className="item-subtitle-sub" title={camp.location}>{camp.location}</p>
-                    <p className="text-[10px] text-[#555] mt-0.5">{camp.time}</p>
-                  </div>
-                  <button className="premium-btn-register">
-                    Register
-                  </button>
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center py-6 text-center">
+                  <p style={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "0.85rem" }}>
+                    No upcoming camps found.
+                  </p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
 

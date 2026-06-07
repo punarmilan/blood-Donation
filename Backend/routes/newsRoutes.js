@@ -3,6 +3,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import { createCloudinaryStorage } from "../config/cloudinary.js";
 import News from "../models/News.js";
 
 const router = express.Router();
@@ -15,13 +16,7 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
-  filename: (req, file, cb) => {
-    const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, unique + path.extname(file.originalname));
-  },
-});
+const storage = createCloudinaryStorage("blood_donation/news");
 
 const fileFilter = (req, file, cb) => {
   const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -43,7 +38,7 @@ function generateSlug(title) {
 /* ── Thumbnail Upload ─────────────── */
 router.post("/upload", upload.single("file"), (req, res) => {
   if (!req.file) return res.status(400).json({ success: false, message: "No file uploaded." });
-  const fileUrl = `${req.protocol}://${req.get("host")}/uploads/news/${req.file.filename}`;
+  const fileUrl = req.file.path;
   res.json({ success: true, fileUrl });
 });
 

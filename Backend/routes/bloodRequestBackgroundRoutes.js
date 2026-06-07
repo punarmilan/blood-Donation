@@ -3,6 +3,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import { createCloudinaryStorage } from "../config/cloudinary.js";
 import BloodRequestBackground from "../models/BloodRequestBackground.js";
 import { verifyToken } from "../middleware/authMiddleware.js";
 
@@ -15,16 +16,8 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Multer Storage Configuration
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  },
-});
+// Multer Storage Configuration (Cloudinary)
+const storage = createCloudinaryStorage("blood_donation/backgrounds");
 
 // File filter and size limits
 const fileFilter = (req, file, cb) => {
@@ -85,22 +78,11 @@ router.post("/", verifyToken, upload.single("media"), async (req, res) => {
     const isImage = /jpeg|jpg|png|webp/.test(extname);
     const mediaType = isImage ? "image" : "video";
 
-    // Validate size limit based on type
-    const maxSize = isImage ? 5 * 1024 * 1024 : 50 * 1024 * 1024;
-    if (req.file.size > maxSize) {
-      // Clean up uploaded file
-      fs.unlinkSync(req.file.path);
-      return res.status(400).json({ 
-        success: false, 
-        message: `File size exceeds the limit. Max allowed: ${isImage ? '5MB for images' : '50MB for videos'}.` 
-      });
-    }
-
     // Deactivate all previous backgrounds
     await BloodRequestBackground.updateMany({}, { isActive: false });
 
     // Save new background
-    const fileUrl = `${req.protocol}://${req.get("host")}/uploads/backgrounds/${req.file.filename}`;
+    const fileUrl = req.file.path;
     
     const newBackground = await BloodRequestBackground.create({
       mediaUrl: fileUrl,
@@ -150,14 +132,7 @@ router.delete("/:id", verifyToken, async (req, res) => {
       return res.status(404).json({ success: false, message: "Background not found" });
     }
 
-    // Delete file from disk
-    const filename = background.mediaUrl.split("/uploads/backgrounds/")[1];
-    if (filename) {
-      const filePath = path.join(__dirname, "../uploads/backgrounds", filename);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    }
+    // Note: Cloudinary asset deletion can be added here if needed.
 
     await BloodRequestBackground.findByIdAndDelete(id);
 

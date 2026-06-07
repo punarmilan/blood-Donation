@@ -64,8 +64,8 @@ router.get("/camp/:campId", verifyOrganizerToken, async (req, res) => {
       return res.status(403).json({ success: false, message: "Unauthorized access to this camp" });
     }
 
-    // Format the registered donors array
-    const formattedDonors = camp.registeredDonors.map(donor => {
+    // Format the registered donors array (Logged-in Users)
+    const userDonors = camp.registeredDonors.map(donor => {
       // Get first name + last initial
       const nameParts = donor.name ? donor.name.split(' ') : ['Unknown'];
       const firstName = nameParts[0];
@@ -79,6 +79,30 @@ router.get("/camp/:campId", verifyOrganizerToken, async (req, res) => {
         registeredAt: donor.createdAt // Using createdAt as fallback for registration time
       };
     });
+
+    // Source 2: Public CampRegistration donors (WhatsApp link se aaye)
+    const campRegistrations = await CampRegistration.find({
+      $or: [
+        { campId: camp.campId },
+        { camp: camp._id }
+      ]
+    }).sort({ createdAt: -1 });
+
+    const publicDonors = campRegistrations.map(reg => {
+      const nameParts = reg.name ? reg.name.split(' ') : ['Unknown'];
+      const firstName = nameParts[0];
+      const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+      const formattedName = lastName ? `${firstName} ${lastName.charAt(0)}.` : firstName;
+
+      return {
+        _id: reg._id,
+        name: formattedName,
+        bloodGroup: reg.bloodGroup || 'Unknown',
+        registeredAt: reg.createdAt
+      };
+    });
+
+    const formattedDonors = [...publicDonors, ...userDonors];
 
     res.json({
       success: true,
