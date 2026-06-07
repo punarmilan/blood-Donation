@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import { getNewsBySlug, getNews } from "../services/newsService";
 
 const BADGE_COLORS = {
   AWARENESS: "#e11d48",
@@ -29,14 +29,14 @@ export default function NewsDetail() {
       setLoading(true);
       setNotFound(false);
       try {
-        const res = await axios.get(`/api/news/${slug}`);
-        if (res.data.success) {
-          setArticle(res.data.data);
+        const data = await getNewsBySlug(slug);
+        if (data && data.success) {
+          setArticle(data.data);
           // Fetch related articles (same category, excluding current)
-          const allRes = await axios.get(`/api/news?published=true`);
-          if (allRes.data.success) {
-            const others = allRes.data.data.filter(
-              a => a._id !== res.data.data._id && a.category === res.data.data.category
+          const allData = await getNews(true);
+          if (allData && allData.success) {
+            const others = allData.data.filter(
+              a => a._id !== data.data._id && a.category === data.data.category
             ).slice(0, 3);
             setRelated(others);
           }

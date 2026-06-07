@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { changePassword } from '../../services/authService';
 import { Eye, EyeOff } from 'lucide-react';
 
 const ChangePassword = () => {
@@ -23,11 +23,7 @@ const ChangePassword = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('organizer-token') || localStorage.getItem('admin-token') || localStorage.getItem('token');
-      await axios.post('/api/auth/change-password', {
-        currentPassword, newPassword
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await changePassword({ currentPassword, newPassword }, token);
       
       const user = JSON.parse(localStorage.getItem('user'));
       user.mustChangePassword = false;

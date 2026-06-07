@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import { getNews, uploadNewsImage, createNews, updateNews, deleteNews } from "../services/newsService";
 
 const CATEGORIES = ["AWARENESS", "GUIDE", "MYTHS", "UPDATE", "EVENT", "RESEARCH"];
 
@@ -36,8 +36,8 @@ export default function NewsAdmin() {
   const fetchArticles = async () => {
     setLoading(true);
     try {
-      const res = await axios.get("/api/news");
-      if (res.data.success) setArticles(res.data.data);
+      const data = await getNews();
+      if (data && data.success) setArticles(data.data);
     } catch (e) {
       console.error("Failed to load news", e);
     } finally { setLoading(false); }
@@ -55,9 +55,9 @@ export default function NewsAdmin() {
     data.append("file", file);
     setUploading(true);
     try {
-      const res = await axios.post("/api/news/upload", data, { headers: { "Content-Type": "multipart/form-data" } });
-      if (res.data.success) {
-        setForm(prev => ({ ...prev, thumbnailUrl: res.data.fileUrl }));
+      const dataRes = await uploadNewsImage(data);
+      if (dataRes && dataRes.success) {
+        setForm(prev => ({ ...prev, thumbnailUrl: dataRes.fileUrl }));
       }
     } catch (e) {
       alert("Upload failed: " + (e.response?.data?.message || e.message));
@@ -72,10 +72,10 @@ export default function NewsAdmin() {
     setSaving(true);
     try {
       if (editId) {
-        await axios.put(`/api/news/${editId}`, form);
+        await updateNews(editId, form);
         alert("Article updated!");
       } else {
-        await axios.post("/api/news", form);
+        await createNews(form);
         alert("Article created!");
       }
       setShowForm(false);
@@ -105,7 +105,7 @@ export default function NewsAdmin() {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this article?")) return;
     try {
-      await axios.delete(`/api/news/${id}`);
+      await deleteNews(id);
       fetchArticles();
     } catch (e) {
       alert("Delete failed: " + (e.response?.data?.message || e.message));
@@ -114,7 +114,7 @@ export default function NewsAdmin() {
 
   const handleTogglePublish = async (article) => {
     try {
-      await axios.put(`/api/news/${article._id}`, { published: !article.published });
+      await updateNews(article._id, { published: !article.published });
       fetchArticles();
     } catch (e) {
       alert("Failed to toggle publish.");

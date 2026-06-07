@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import axios from "axios";
+import { getMe, registerUser } from "../services/authService";
 
 const AuthContext = createContext();
 
@@ -19,11 +19,9 @@ export const AuthProvider = ({ children }) => {
       if (token) {
         try {
           // Verify token and fetch user
-          const res = await axios.get("/api/auth/me", {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          if (res.data.success) {
-            setCurrentUser(res.data.user);
+          const data = await getMe(token);
+          if (data && data.success) {
+            setCurrentUser(data.user);
           }
         } catch (error) {
           console.error("Token verification failed", error);
@@ -63,11 +61,11 @@ export const AuthProvider = ({ children }) => {
       }
       
       // 2. Register/Login on Backend
-      const res = await axios.post("/api/auth/register", userData);
+      const data = await registerUser(userData);
       
-      if (res.data.success) {
-        localStorage.setItem("jwt_token", res.data.token);
-        setCurrentUser(res.data.user);
+      if (data && data.success) {
+        localStorage.setItem("jwt_token", data.token);
+        setCurrentUser(data.user);
         return { success: true };
       }
     } catch (error) {

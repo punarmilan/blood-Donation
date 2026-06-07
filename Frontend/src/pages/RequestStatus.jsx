@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
+import { getRequestStatus } from "../services/requestService";
 import { 
   Share2, MapPin, Hospital, 
   Check, Users, UserCheck, Clock, ShieldCheck, 
@@ -19,9 +19,9 @@ const RequestStatus = () => {
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const res = await axios.get(`/api/request/${requestId}`);
-        if (res.data.success) {
-          setRequest(res.data.data);
+        const data = await getRequestStatus(requestId);
+        if (data && data.success) {
+          setRequest(data.data);
         }
       } catch (error) {
         console.error("Failed to fetch request status");

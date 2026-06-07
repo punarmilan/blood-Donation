@@ -3,7 +3,8 @@
 .bloodbanks-page {
   background-color: #050505;
   color: #ffffff;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   font-family: 'Inter', sans-serif;
@@ -149,6 +150,8 @@
   flex-direction: column;
   gap: 15px;
   padding-right: 10px;
+  height: calc(100vh - 240px); /* Adjust for header and filters */
+  overflow-y: auto;
 }
 
 .list-header h2 {
@@ -299,7 +302,7 @@
   background-color: #101010;
   position: sticky;
   top: 20px;
-  height: calc(100vh - 40px);
+  height: calc(100vh - 240px); /* Match list height */
   z-index: 10;
 }
 

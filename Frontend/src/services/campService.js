@@ -26,6 +26,16 @@ const campService = {
       headers: { "Content-Type": "multipart/form-data" }
     });
     return response.data;
+  },
+  getCampById: async (id) => {
+    const response = await api.get(`/camps/${id}`);
+    return response.data;
+  },
+  completeCamp: async (id, formData) => {
+    const response = await api.patch(`/camps/${id}/complete`, formData, {
+      headers: { "Content-Type": "multipart/form-data" }
+    });
+    return response.data;
   }
 };
 

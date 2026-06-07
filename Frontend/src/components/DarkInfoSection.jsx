@@ -2,7 +2,8 @@
   import { Link, useNavigate } from "react-router-dom";
   import gsap from "gsap";
   import { ScrollTrigger } from "gsap/ScrollTrigger";
-  import axios from "axios";
+  import { getStories } from "../services/successStoriesService";
+  import { getPublicNews } from "../services/newsService";
   import { Swiper, SwiperSlide } from 'swiper/react';
   import { Autoplay, Pagination, Navigation } from 'swiper/modules';
   import 'swiper/css';
@@ -200,9 +201,9 @@
     useEffect(() => {
       const fetchStories = async () => {
         try {
-          const res = await axios.get("/api/success-stories?active=true");
-          if (res.data.success && res.data.data.length > 0) {
-            setSuccessStories(res.data.data);
+          const data = await getStories(true);
+          if (data && data.success && data.data.length > 0) {
+            setSuccessStories(data.data);
           }
         } catch (err) {
           console.error("Failed to load success stories", err);
@@ -217,9 +218,9 @@
     useEffect(() => {
       const fetchNews = async () => {
         try {
-          const res = await axios.get("/api/news/public");
-          if (res.data.success) {
-            setNews(res.data.data);
+          const data = await getPublicNews();
+          if (data && data.success) {
+            setNews(data.data);
           }
         } catch (err) {
           console.error("Failed to load news", err);

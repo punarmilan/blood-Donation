@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
+import { getNews } from "../services/newsService";
 
 const BADGE_COLORS = {
   AWARENESS: "#e11d48",
@@ -80,8 +80,8 @@ export default function NewsPage() {
   useEffect(() => {
     const fetchNews = async () => {
       try {
-        const res = await axios.get("/api/news?published=true");
-        if (res.data.success) setArticles(res.data.data);
+        const data = await getNews(true); // true means publishedOnly
+        if (data && data.success) setArticles(data.data);
       } catch (e) {
         console.error("Failed to load articles", e);
       } finally {

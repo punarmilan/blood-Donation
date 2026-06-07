@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap, GeoJSON } from "react-leaflet";
 import L from "leaflet";
 import axios from "axios";
+import { getNearbyBloodBanks } from "../services/bloodBankService";
 import { Search, MapPin, Droplet, Phone, Navigation, AlertCircle, RefreshCw, X } from "lucide-react";
 import "./BloodBanks.css";
 
@@ -109,16 +110,8 @@ export default function BloodBanks() {
   const fetchBloodBanks = async (lat, lng, r, bg, sq) => {
     try {
       setLoading(true);
-      const res = await axios.get("/api/blood-banks/nearby", {
-        params: {
-          lat,
-          lng,
-          radius: r,
-          bloodGroup: bg,
-          search: sq,
-        },
-      });
-      let fetchedBanks = res.data.data || [];
+      const data = await getNearbyBloodBanks(lat, lng, r, bg, sq);
+      let fetchedBanks = data.data || [];
 
       // Fetch actual driving distances in a single request using OSRM Table API
       if (fetchedBanks.length > 0) {
@@ -153,6 +146,9 @@ export default function BloodBanks() {
           });
         }
       }
+
+      // Filter out banks whose calculated driving distance exceeds the selected radius
+      fetchedBanks = fetchedBanks.filter(bank => Number(bank.distanceKm) <= radius);
 
       setBloodBanks(fetchedBanks);
     } catch (err) {

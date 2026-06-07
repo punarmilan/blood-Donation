@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import axios from "axios";
+import { getGalleryImages } from "../services/impactGalleryService";
 import { Link } from "react-router-dom";
 import gsap from "gsap";
 import {
@@ -17,9 +17,9 @@ const About = () => {
   useEffect(() => {
     const fetchGallery = async () => {
       try {
-        const res = await axios.get("/api/impact-gallery");
-        if (res.data.success) {
-          setGalleryItems(res.data.data);
+        const data = await getGalleryImages();
+        if (data && data.success) {
+          setGalleryItems(data.data);
         }
       } catch (err) {
         console.error("Failed to load gallery items", err);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import campService from '../../services/campService';
 
 const CompleteCamp = () => {
   const { campId } = useParams();
@@ -18,11 +18,8 @@ const CompleteCamp = () => {
   useEffect(() => {
     const fetchCamp = async () => {
       try {
-        const token = localStorage.getItem('adminToken');
-        const res = await axios.get(`/api/camps/${campId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setCamp(res.data);
+        const data = await campService.getCampById(campId);
+        setCamp(data);
       } catch (err) {
         setError('Failed to load camp details');
       } finally {
@@ -54,12 +51,7 @@ const CompleteCamp = () => {
 
       // Adjust route if necessary: we built /api/camps/:campId/complete 
       // where :campId could be the generated ID like RDC... or _id
-      await axios.patch(`/api/camps/${camp.campId || camp._id}/complete`, formData, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+      await campService.completeCamp(camp.campId || camp._id, formData);
       
       alert('Camp marked as completed! Emails sent successfully.');
       navigate('/admin'); // Or wherever admin goes back

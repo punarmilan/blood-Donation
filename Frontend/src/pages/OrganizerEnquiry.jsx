@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
+import { submitOrganizerEnquiry } from "../services/enquiryService";
 import { 
   User, Users, Phone, Mail, Building2, Calendar, Clock, MapPin, 
   MessageSquare, ArrowRight, ArrowLeft, Droplet, Heart, CheckCircle, Lock 
@@ -52,7 +52,7 @@ const OrganizerEnquiry = () => {
     setSuccessMsg("");
     setErrorMsg("");
     try {
-      await axios.post("/api/organizer-enquiry/submit", form);
+      await submitOrganizerEnquiry(form);
       setSuccessMsg("Enquiry submitted successfully! We will contact you soon.");
       setCurrentStep(5); // Success step
     } catch (err) {

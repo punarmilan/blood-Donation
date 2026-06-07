@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import axios from "axios";
+import { getBloodRequestBackground, createBloodRequest } from "../services/requestService";
 import toast from "react-hot-toast";
 import { AlertCircle, Calendar, Hospital, User, Send, Droplet, Clock, Activity } from "lucide-react";
 import bgImage from "../assets/ragister.png";
@@ -21,9 +21,9 @@ const BloodRequestForm = () => {
   useEffect(() => {
     const fetchBackground = async () => {
       try {
-        const res = await axios.get("/api/blood-request-background");
-        if (res.data.success && res.data.background) {
-          setBgData(res.data.background);
+        const data = await getBloodRequestBackground();
+        if (data && data.success && data.background) {
+          setBgData(data.background);
         }
       } catch (err) {
         console.error("Failed to load dynamic background", err);
@@ -63,17 +63,16 @@ const BloodRequestForm = () => {
     setSubmitting(true);
     try {
       const token = localStorage.getItem("jwt_token");
-      const res = await axios.post("/api/request/create", {
+      const dataToSubmit = {
         ...formData,
         units: formData.units === "4+" ? 4 : parseInt(formData.units),
         city: currentUser?.city || "Pune"
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      };
+      const dataRes = await createBloodRequest(dataToSubmit, token);
 
-      if (res.data.success) {
+      if (dataRes && dataRes.success) {
         toast.success("Request submitted successfully!");
-        navigate(`/request-status/${res.data.data.requestId}`);
+        navigate(`/request-status/${dataRes.data.requestId}`);
       }
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to submit request");

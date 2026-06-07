@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import { getGalleryImages, uploadGalleryImage, createGalleryImage, updateGalleryImage, deleteGalleryImage } from "../services/impactGalleryService";
 
 const CATEGORIES = [
   "Camp Setup",
@@ -38,9 +38,9 @@ const ImpactGalleryAdmin = () => {
   const fetchItems = async () => {
     setLoading(true);
     try {
-      const res = await axios.get("/api/impact-gallery");
-      if (res.data.success) {
-        setItems(res.data.data);
+      const data = await getGalleryImages();
+      if (data && data.success) {
+        setItems(data.data);
       }
     } catch (err) {
       console.error("Failed to fetch gallery items", err);
@@ -66,11 +66,9 @@ const ImpactGalleryAdmin = () => {
 
     setUploading(true);
     try {
-      const res = await axios.post("/api/impact-gallery/upload", data, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      if (res.data.success) {
-        setFormData((prev) => ({ ...prev, mediaUrl: res.data.fileUrl }));
+      const dataRes = await uploadGalleryImage(data);
+      if (dataRes && dataRes.success) {
+        setFormData((prev) => ({ ...prev, mediaUrl: dataRes.fileUrl }));
         alert("File uploaded successfully!");
       }
     } catch (err) {
@@ -89,10 +87,10 @@ const ImpactGalleryAdmin = () => {
 
     try {
       if (editId) {
-        await axios.put(`/api/impact-gallery/${editId}`, formData);
+        await updateGalleryImage(editId, formData);
         alert("Item updated successfully");
       } else {
-        await axios.post("/api/impact-gallery", formData);
+        await createGalleryImage(formData);
         alert("Item added successfully");
       }
       setShowForm(false);
@@ -123,7 +121,7 @@ const ImpactGalleryAdmin = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this item?")) return;
     try {
-      await axios.delete(`/api/impact-gallery/${id}`);
+      await deleteGalleryImage(id);
       fetchItems();
     } catch (err) {
       console.error("Delete error", err);
@@ -133,7 +131,7 @@ const ImpactGalleryAdmin = () => {
 
   const handleSetFeatured = async (id) => {
     try {
-      await axios.put(`/api/impact-gallery/${id}`, { featured: true });
+      await updateGalleryImage(id, { featured: true });
       fetchItems();
     } catch (err) {
       console.error("Set featured error", err);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import { getStories, uploadStoryImage, createStory, updateStory, deleteStory } from "../services/successStoriesService";
 
 const SuccessStoriesAdmin = () => {
   const [items, setItems] = useState([]);
@@ -26,9 +26,9 @@ const SuccessStoriesAdmin = () => {
   const fetchItems = async () => {
     setLoading(true);
     try {
-      const res = await axios.get("/api/success-stories");
-      if (res.data.success) {
-        setItems(res.data.data);
+      const data = await getStories();
+      if (data && data.success) {
+        setItems(data.data);
       }
     } catch (err) {
       console.error("Failed to fetch success stories", err);
@@ -66,11 +66,9 @@ const SuccessStoriesAdmin = () => {
 
     setUploading(true);
     try {
-      const res = await axios.post("/api/success-stories/upload", data, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      if (res.data.success) {
-        setFormData((prev) => ({ ...prev, image: res.data.fileUrl }));
+      const dataRes = await uploadStoryImage(data);
+      if (dataRes && dataRes.success) {
+        setFormData((prev) => ({ ...prev, image: dataRes.fileUrl }));
         alert("Image uploaded successfully!");
       }
     } catch (err) {
@@ -89,10 +87,10 @@ const SuccessStoriesAdmin = () => {
 
     try {
       if (editId) {
-        await axios.put(`/api/success-stories/${editId}`, formData);
+        await updateStory(editId, formData);
         alert("Story updated successfully");
       } else {
-        await axios.post("/api/success-stories", formData);
+        await createStory(formData);
         alert("Story added successfully");
       }
       setShowForm(false);
@@ -121,7 +119,7 @@ const SuccessStoriesAdmin = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this story?")) return;
     try {
-      await axios.delete(`/api/success-stories/${id}`);
+      await deleteStory(id);
       fetchItems();
     } catch (err) {
       console.error("Delete error", err);
@@ -131,7 +129,7 @@ const SuccessStoriesAdmin = () => {
 
   const handleToggleActive = async (id, currentStatus) => {
     try {
-      await axios.put(`/api/success-stories/${id}`, { isActive: !currentStatus });
+      await updateStory(id, { isActive: !currentStatus });
       fetchItems();
     } catch (err) {
       console.error("Toggle active error", err);
