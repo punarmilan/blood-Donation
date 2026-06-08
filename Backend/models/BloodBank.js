@@ -7,34 +7,63 @@ const BloodBankSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    address: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    phone: {
+    managerName: {
       type: String,
       required: true,
       trim: true,
     },
     email: {
       type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      lowercase: true,
+    },
+    mobile: {
+      type: String,
+      required: true,
+      unique: true,
       trim: true,
     },
-    bloodGroupsAvailable: {
-      type: [String],
-      enum: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"],
-      default: [],
-    },
-    status: {
+    licenseNumber: {
       type: String,
-      enum: ["active", "inactive"],
-      default: "active",
+      required: true,
+      unique: true,
+      trim: true,
     },
-    openStatus: {
+    address: {
       type: String,
-      enum: ["open", "closed", "unknown"],
-      default: "unknown",
+      required: true,
+      trim: true,
+    },
+    city: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    state: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    pincode: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    emergencyContact: {
+      type: String,
+      trim: true,
+    },
+    openingTime: {
+      type: String,
+    },
+    closingTime: {
+      type: String,
+    },
+    available24x7: {
+      type: Boolean,
+      default: false,
     },
     location: {
       type: {
@@ -43,9 +72,67 @@ const BloodBankSchema = new mongoose.Schema(
         default: "Point",
       },
       coordinates: {
-        type: [Number],
-        required: true,
+        type: [Number], // [longitude, latitude]
+        default: [0, 0],
       },
+    },
+    licenseDocumentUrl: {
+      type: String,
+      required: true,
+    },
+    role: {
+      type: String,
+      default: "bloodbank",
+    },
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected", "blocked"],
+      default: "pending",
+    },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    password: {
+      type: String,
+      default: null,
+    },
+    passwordSetupToken: {
+      type: String,
+    },
+    passwordSetupTokenExpires: {
+      type: Date,
+    },
+    rejectionReason: {
+      type: String,
+    },
+    approvedAt: {
+      type: Date,
+    },
+    rejectedAt: {
+      type: Date,
+    },
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+    },
+    rejectedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Admin",
+    },
+    inventory: {
+      "A+": { type: Number, default: 0 },
+      "A-": { type: Number, default: 0 },
+      "B+": { type: Number, default: 0 },
+      "B-": { type: Number, default: 0 },
+      "O+": { type: Number, default: 0 },
+      "O-": { type: Number, default: 0 },
+      "AB+": { type: Number, default: 0 },
+      "AB-": { type: Number, default: 0 },
+    },
+    lastInventoryUpdated: {
+      type: Date,
+      default: null,
     },
   },
   { timestamps: true }

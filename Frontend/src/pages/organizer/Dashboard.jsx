@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import organizerService from '../../services/organizerService';
-import { LayoutDashboard, Tent, FileText, Image, Users, LogOut, ArrowUpRight, Plus, Droplet, MapPin, Clock, Calendar, Search, KeyRound } from 'lucide-react';
+import { LayoutDashboard, Tent, FileText, Image, Users, LogOut, ArrowUpRight, Plus, Droplet, MapPin, Clock, Calendar, Search, KeyRound, MessageSquare } from 'lucide-react';
+import OrganizerWhatsAppConnect from '../OrganizerWhatsAppConnect';
 
 const OrganizerDashboard = () => {
   const { tab } = useParams();
@@ -268,6 +269,10 @@ const OrganizerDashboard = () => {
           <button onClick={() => navigate('/organizer-dashboard/gallery')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${activeTab === 'gallery' ? 'bg-[#E74C3C] text-white shadow-sm' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
             <Image className="w-5 h-5" /> Gallery
           </button>
+          <Link to="/organizer/dashboard/whatsapp-connect" className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition ${activeTab === 'whatsapp-connect' ? 'bg-[#E74C3C] text-white shadow-lg shadow-red-500/20' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+            <MessageSquare className="w-5 h-5" />
+            <span>WhatsApp Connect</span>
+          </Link>
         </nav>
 
         <div className="p-4 border-t border-white/10 mt-auto">
@@ -308,6 +313,7 @@ const OrganizerDashboard = () => {
         {activeTab === 'registrations' && renderRegistrations()}
         {activeTab === 'reports' && renderReports()}
         {activeTab === 'gallery' && renderGallery()}
+        {activeTab === 'whatsapp-connect' && <OrganizerWhatsAppConnect />}
         
         </div>
       </main>

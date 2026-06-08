@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Activity, Save, AlertCircle, CheckCircle2 } from 'lucide-react';
 import api from '../services/api';
 
-const DonorHealthDetails = ({ currentUser, onUpdate }) => {
+const DonorHealthDetails = ({ currentUser, onUpdate, readOnly = false }) => {
   const [formData, setFormData] = useState({
     weight: '',
     height: '',
@@ -173,7 +173,8 @@ const DonorHealthDetails = ({ currentUser, onUpdate }) => {
                 onChange={handleChange}
                 min="30" max="200" step="0.1"
                 required
-                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500 transition-colors" 
+                disabled={readOnly}
+                className={`w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500 transition-colors ${readOnly ? 'bg-gray-50 cursor-not-allowed' : ''}`} 
               />
             </div>
             <div>
@@ -185,7 +186,8 @@ const DonorHealthDetails = ({ currentUser, onUpdate }) => {
                 onChange={handleChange}
                 min="100" max="250"
                 required
-                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500 transition-colors" 
+                disabled={readOnly}
+                className={`w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500 transition-colors ${readOnly ? 'bg-gray-50 cursor-not-allowed' : ''}`} 
               />
             </div>
             <div>
@@ -197,7 +199,8 @@ const DonorHealthDetails = ({ currentUser, onUpdate }) => {
                 onChange={handleChange}
                 min="18" max="65"
                 required
-                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500 transition-colors" 
+                disabled={readOnly}
+                className={`w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500 transition-colors ${readOnly ? 'bg-gray-50 cursor-not-allowed' : ''}`} 
               />
             </div>
             <div>
@@ -207,7 +210,8 @@ const DonorHealthDetails = ({ currentUser, onUpdate }) => {
                 value={formData.gender}
                 onChange={handleChange}
                 required
-                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500 transition-colors"
+                disabled={readOnly}
+                className={`w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500 transition-colors ${readOnly ? 'bg-gray-50 cursor-not-allowed' : ''}`}
               >
                 <option value="">Select Gender</option>
                 <option value="Male">Male</option>
@@ -229,7 +233,8 @@ const DonorHealthDetails = ({ currentUser, onUpdate }) => {
                 value={formData.bloodGroup}
                 onChange={handleChange}
                 required
-                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500 transition-colors"
+                disabled={readOnly}
+                className={`w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500 transition-colors ${readOnly ? 'bg-gray-50 cursor-not-allowed' : ''}`}
               >
                 <option value="">Select Blood Group</option>
                 {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(bg => (
@@ -246,7 +251,8 @@ const DonorHealthDetails = ({ currentUser, onUpdate }) => {
                 onChange={handleChange}
                 min="5" max="20" step="0.1"
                 required
-                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500 transition-colors" 
+                disabled={readOnly}
+                className={`w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500 transition-colors ${readOnly ? 'bg-gray-50 cursor-not-allowed' : ''}`} 
               />
             </div>
             <div>
@@ -257,7 +263,8 @@ const DonorHealthDetails = ({ currentUser, onUpdate }) => {
                 value={formData.sugarLevel}
                 onChange={handleChange}
                 min="40" max="400"
-                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500 transition-colors" 
+                disabled={readOnly}
+                className={`w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500 transition-colors ${readOnly ? 'bg-gray-50 cursor-not-allowed' : ''}`} 
               />
             </div>
           </div>
@@ -275,7 +282,8 @@ const DonorHealthDetails = ({ currentUser, onUpdate }) => {
                 value={formData.emergencyContactName}
                 onChange={handleChange}
                 required
-                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500 transition-colors" 
+                disabled={readOnly}
+                className={`w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500 transition-colors ${readOnly ? 'bg-gray-50 cursor-not-allowed' : ''}`} 
               />
             </div>
             <div>
@@ -287,33 +295,36 @@ const DonorHealthDetails = ({ currentUser, onUpdate }) => {
                 onChange={handleChange}
                 required
                 placeholder="10-digit mobile number"
-                className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500 transition-colors" 
+                disabled={readOnly}
+                className={`w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500 transition-colors ${readOnly ? 'bg-gray-50 cursor-not-allowed' : ''}`} 
               />
             </div>
           </div>
         </div>
 
-        <div className="pt-4 border-t border-gray-100 flex justify-end">
-          <button 
-            type="submit" 
-            disabled={loading}
-            className={`flex items-center gap-2 px-8 py-3 rounded-xl text-white font-medium transition-all shadow-sm ${
-              loading ? 'bg-red-400 cursor-not-allowed' : 'bg-[#E74C3C] hover:bg-red-700'
-            }`}
-          >
-            {loading ? (
-              <span className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Saving...
-              </span>
-            ) : (
-              <span className="flex items-center gap-2">
-                <Save size={18} />
-                Save Health Details
-              </span>
-            )}
-          </button>
-        </div>
+        {!readOnly && (
+          <div className="pt-4 border-t border-gray-100 flex justify-end">
+            <button 
+              type="submit" 
+              disabled={loading}
+              className={`flex items-center gap-2 px-8 py-3 rounded-xl text-white font-medium transition-all shadow-sm ${
+                loading ? 'bg-red-400 cursor-not-allowed' : 'bg-[#E74C3C] hover:bg-red-700'
+              }`}
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Saving...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <Save size={18} />
+                  Save Health Details
+                </span>
+              )}
+            </button>
+          </div>
+        )}
 
       </form>
     </div>

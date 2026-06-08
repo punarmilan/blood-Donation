@@ -1,3 +1,21 @@
+# Dependencies
+node_modules/
+
+# Environment variables (SECURITY RISK if pushed)
 .env
-node_modules
-dist    
+.env.*
+!.env.example
+!.env.admin
+
+# Build outputs
+dist/
+build/
+
+# Backend specific
+Backend/auth_info_baileys/
+Backend/.sessions/
+Backend/uploads/
+
+# OS generated files
+.DS_Store
+Thumbs.db

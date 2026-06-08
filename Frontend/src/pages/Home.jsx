@@ -237,7 +237,7 @@ const Home = () => {
                 className="shine inline-flex items-center gap-2 px-9 py-[18px] rounded-full text-[1.1rem] font-bold text-white cursor-pointer border-none transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_22px_64px_rgba(225,29,72,0.34)]"
                 style={{ background: "linear-gradient(135deg,#e11d48 0%,#dc2626 55%,#fb7185 120%)", boxShadow: "0 18px 50px rgba(225,29,72,.26)" }}
               >
-                <span>Donate karo</span>
+                <span>Donate Blood</span>
               </button>
 
               <button
@@ -247,7 +247,7 @@ const Home = () => {
                   ${isCustomBg ? "bg-white/10 text-white border-white/20 hover:bg-white/20 hover:shadow-[0_22px_64px_rgba(255,255,255,0.1)]" : "bg-white text-slate-800 border-slate-200 hover:shadow-[0_22px_64px_rgba(0,0,0,0.08)]"}
                 `}
               >
-                <span>Blood chahiye</span>
+                <span>blood Request</span>
               </button>
 
               <button
@@ -257,7 +257,7 @@ const Home = () => {
                   ${isCustomBg ? "bg-white/10 text-white border-white/20 hover:bg-white/20 hover:shadow-[0_22px_64px_rgba(255,255,255,0.1)]" : "bg-white text-slate-800 border-slate-200 hover:shadow-[0_22px_64px_rgba(0,0,0,0.08)]"}
                 `}
               >
-                <span>Camp lagwao</span>
+                <span>Camp Arrange</span>
               </button>
             </div>
 

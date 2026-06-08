@@ -8,6 +8,11 @@ import Donor from "../models/Donor.js";
 import CampRegistration from "../models/CampRegistration.js";
 
 import { verifyOrganizerToken } from "../middleware/authMiddleware.js";
+import { 
+  connectOrganizerWhatsApp, 
+  disconnectOrganizerWhatsApp, 
+  getOrganizerConnectionStatus 
+} from '../whatsapp/waClient.js';
 
 const router = express.Router();
 /* ======================================================
@@ -115,7 +120,7 @@ router.get("/camp/:campId", verifyOrganizerToken, async (req, res) => {
         city: camp.city || 'Unknown',
         area: camp.area || camp.location || 'Unknown',
         expectedDonors: camp.expectedDonors || 'N/A',
-        totalSlots: 50, // Mocking total slots since it's not strictly a schema field in the format required
+        totalSlots: camp.totalSlots || (camp.expectedDonors ? parseInt(camp.expectedDonors) : 100) || 100,
         status: camp.status || 'upcoming',
         registeredDonors: formattedDonors,
         registeredCount: formattedDonors.length,
@@ -405,6 +410,59 @@ router.get('/reports', verifyOrganizerToken, async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
+/* ======================================================
+   WHATSAPP CONNECT APIs
+====================================================== */
+router.get('/whatsapp/status', verifyOrganizerToken, async (req, res) => {
+  try {
+    const organizerId = req.organizer._id.toString();
+    const organizer = await User.findById(organizerId);
+    
+    if (!organizer) {
+      return res.status(404).json({ success: false, message: 'Organizer not found' });
+    }
 
+    const isConnectedInMemory = getOrganizerConnectionStatus(organizerId);
+    
+    // Fallback sync if memory and DB differ (e.g. server restart)
+    if (organizer.whatsappConnected && !isConnectedInMemory && organizer.whatsappSessionId) {
+      // Background reconnect attempt since DB says it should be connected
+      connectOrganizerWhatsApp(organizerId);
+    }
+
+    res.json({
+      success: true,
+      connected: organizer.whatsappConnected,
+      whatsappNumber: organizer.whatsappNumber
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.post('/whatsapp/start', verifyOrganizerToken, async (req, res) => {
+  try {
+    const organizerId = req.organizer._id.toString();
+    
+    // Start WhatsApp process; it will emit QR via Socket.IO
+    connectOrganizerWhatsApp(organizerId);
+    
+    res.json({ success: true, message: 'WhatsApp connection process started. Waiting for QR.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.post('/whatsapp/disconnect', verifyOrganizerToken, async (req, res) => {
+  try {
+    const organizerId = req.organizer._id.toString();
+    
+    await disconnectOrganizerWhatsApp(organizerId);
+    
+    res.json({ success: true, message: 'WhatsApp disconnected successfully.' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 export default router;

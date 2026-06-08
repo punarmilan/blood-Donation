@@ -324,23 +324,23 @@ export default function BloodBanks() {
                 <p className="bank-address">{bank.address}</p>
                 
                 <div className="bank-tags">
-                  <span className={`status-badge ${bank.openStatus}`}>
-                    {bank.openStatus.toUpperCase()}
+                  <span className="status-badge bg-red-600/20 text-red-500 border border-red-500/30">
+                    {bank.available24x7 ? "24x7 OPEN" : `${bank.openingTime || "N/A"} - ${bank.closingTime || "N/A"}`}
                   </span>
                 </div>
 
                 <div className="blood-groups">
-                  {bank.bloodGroupsAvailable.length > 0 ? (
-                    bank.bloodGroupsAvailable.map(bg => (
-                      <span key={bg} className="bg-chip">{bg}</span>
+                  {bank.inventory && Object.entries(bank.inventory).filter(([_, count]) => count > 0).length > 0 ? (
+                    Object.entries(bank.inventory).filter(([_, count]) => count > 0).map(([bg, count]) => (
+                      <span key={bg} className="bg-chip" title={`${count} Units`}>{bg} <span className="text-xs ml-1 opacity-70">({count})</span></span>
                     ))
                   ) : (
-                    <span className="text-zinc-500 text-sm">Blood groups not updated</span>
+                    <span className="text-zinc-500 text-sm">No inventory data</span>
                   )}
                 </div>
 
                 <div className="bank-actions">
-                  <a href={`tel:${bank.phone}`} className="btn-call" onClick={(e) => e.stopPropagation()}>
+                  <a href={`tel:${bank.mobile}`} className="btn-call" onClick={(e) => e.stopPropagation()}>
                     <Phone className="w-4 h-4" />
                     Call
                   </a>
@@ -480,7 +480,7 @@ export default function BloodBanks() {
                       <p className="info-address">{bank.address}</p>
                       <p className="info-distance">Distance: {bank.distanceKm} km</p>
                       <div className="info-actions">
-                        <a href={`tel:${bank.phone}`} className="info-btn-call">Call</a>
+                        <a href={`tel:${bank.mobile}`} className="info-btn-call">Call</a>
                         <a 
                           href={`https://www.google.com/maps/dir/?api=1&destination=${bank.location.coordinates[1]},${bank.location.coordinates[0]}`} 
                           target="_blank" 

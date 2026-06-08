@@ -6,6 +6,7 @@ import SuccessStoriesAdmin from "../components/SuccessStoriesAdmin.jsx";
 import NewsAdmin from "../components/NewsAdmin.jsx";
 import BloodRequestBackgroundAdmin from "../components/BloodRequestBackgroundAdmin.jsx";
 import AdminBloodBanks from "../components/AdminBloodBanks.jsx";
+import AdminBloodBankRequests from "../components/AdminBloodBankRequests.jsx";
 import adminService from "../services/adminService";
 import campService from "../services/campService";
 import donorService from "../services/donorService";
@@ -58,6 +59,8 @@ const Admin = () => {
 
   const [organizersList, setOrganizersList] = useState([]);
   const [loadingOrganizers, setLoadingOrganizers] = useState(false);
+  const [allUsers, setAllUsers] = useState([]);
+  const [loadingAllUsers, setLoadingAllUsers] = useState(false);
 
   // --- Blood Requests States ---
   const [bloodRequests, setBloodRequests] = useState([]);
@@ -209,6 +212,22 @@ const Admin = () => {
       console.error("Failed to load total users", err);
     }
   };
+
+  const fetchAllUsers = async () => {
+    setLoadingAllUsers(true);
+    try {
+      const data = await adminService.getAllUsers();
+      setAllUsers(data || []);
+    } catch (err) {
+      console.error("Failed to load all users", err);
+    } finally {
+      setLoadingAllUsers(false);
+    }
+  };
+
+  useEffect(() => {
+    if (currentView === "all-users") fetchAllUsers();
+  }, [currentView]);
 
   const fetchBloodRequests = async () => {
     setLoadingBloodRequests(true);
@@ -403,7 +422,7 @@ const Admin = () => {
     const query = enquiryQuery.trim().toLowerCase();
     if (query) {
       data = data.filter((e) =>
-        [e.organizerName, e.email, e.phone, e.campName, e.hospitalName]
+        [e.organizerName, e.email, e.phone, e.organizationName, e.area, e.organizationType]
           .join(" ")
           .toLowerCase()
           .includes(query)
@@ -639,13 +658,13 @@ const Admin = () => {
   }, [camps]);
 
   const totalDonations = useMemo(() => {
-    return donors.filter(d => d.remark === "Donated").length;
-  }, [donors]);
+    return camps.reduce((sum, c) => sum + (c.donorCount || c.totalUnitsCollected || c.totalDonors || 0), 0);
+  }, [camps]);
 
   const bloodGroupStats = useMemo(() => {
     const counts = { "O+": 0, "A+": 0, "B+": 0, "AB+": 0, "O-": 0, "Others": 0 };
     let total = 0;
-    donors.forEach((d) => {
+    allUsers.forEach((d) => {
       const bg = d.bloodGroup;
       if (counts[bg] !== undefined) {
         counts[bg]++;
@@ -669,7 +688,7 @@ const Admin = () => {
     });
 
     return { list, total };
-  }, [donors]);
+  }, [allUsers]);
 
   // Sorting and Filtering for Camps
   const applySearch = (list) => {
@@ -746,34 +765,36 @@ const Admin = () => {
   };
 
   const renderDonutChart = () => {
-    let currentOffset = 0;
     const radius = 50;
     const circumference = 2 * Math.PI * radius;
+    let currentOffset = 0;
 
     return (
       <svg viewBox="0 0 140 140" className="donut-svg">
-        <circle cx="70" cy="70" r={radius} fill="transparent" stroke="rgba(255,255,255,0.03)" strokeWidth="12" />
-        {bloodGroupStats.list.map((bg) => {
-          if (bg.percentage === 0) return null;
-          const strokeLength = (bg.percentage / 100) * circumference;
-          const strokeOffset = circumference - strokeLength + currentOffset;
-          currentOffset -= strokeLength;
+        <g transform="rotate(-90 70 70)">
+          <circle cx="70" cy="70" r={radius} fill="transparent" stroke="#f1f5f9" strokeWidth="12" />
+          {bloodGroupStats.list.map((bg) => {
+            if (bg.percentage === 0) return null;
+            const strokeLength = (bg.percentage / 100) * circumference;
+            const offset = currentOffset;
+            currentOffset += strokeLength;
 
-          return (
-            <circle
-              key={bg.label}
-              cx="70"
-              cy="70"
-              r={radius}
-              fill="transparent"
-              stroke={bg.color}
-              strokeWidth="12"
-              strokeDasharray={circumference}
-              strokeDashoffset={strokeOffset}
-              strokeLinecap="round"
-            />
-          );
-        })}
+            return (
+              <circle
+                key={bg.label}
+                cx="70"
+                cy="70"
+                r={radius}
+                fill="transparent"
+                stroke={bg.color}
+                strokeWidth="12"
+                strokeDasharray={`${strokeLength} ${circumference}`}
+                strokeDashoffset={-offset}
+                strokeLinecap="round"
+              />
+            );
+          })}
+        </g>
         <text x="70" y="68" textAnchor="middle" className="donut-center-text">
           {bloodGroupStats.total}
         </text>
@@ -822,7 +843,8 @@ const Admin = () => {
         /* Local Premium Styles for Admin Panel */
         .dashboard-wrapper {
           display: flex;
-          min-height: 100vh;
+          height: 100vh;
+          overflow: hidden;
           background-color: #f8fafc;
           font-family: 'Inter', sans-serif;
         }
@@ -954,7 +976,8 @@ const Admin = () => {
           flex: 1;
           display: flex;
           flex-direction: column;
-          min-height: 100vh;
+          height: 100vh;
+          overflow-y: auto;
           overflow-x: hidden;
         }
         .top-header {
@@ -1324,7 +1347,7 @@ const Admin = () => {
         }
       `}</style>
       {/* 1. Left Sidebar Navigation */}
-      <aside className={`sidebar ${!isSidebarOpen ? 'collapsed' : ''}`}>
+      <aside className={`sidebar ${!isSidebarOpen ? 'collapsed' : ''}`} data-lenis-prevent="true">
         <div className="brand-container">
           <div className="brand-logo" title="LifeDrop">🩸</div>
           <div>
@@ -1380,6 +1403,21 @@ const Admin = () => {
             title="Blood Requests"
           >
             <span className="menu-item-icon">🩸</span> <span className="menu-item-text">Blood Requests</span>
+          </button>
+
+          <button
+            className={`menu-item ${currentView === "blood-bank-requests" ? "active" : ""}`}
+            onClick={() => setCurrentView("blood-bank-requests")}
+            title="Blood Bank Requests"
+          >
+            <span className="menu-item-icon">🏥</span> <span className="menu-item-text">Blood Bank Requests</span>
+          </button>
+          <button
+            className={`menu-item ${currentView === "blood-banks" ? "active" : ""}`}
+            onClick={() => setCurrentView("blood-banks")}
+            title="Blood Banks"
+          >
+            <span className="menu-item-icon">🏨</span> <span className="menu-item-text">Blood Banks</span>
           </button>
           <button
             className={`menu-item ${currentView === "organizers" ? "active" : ""}`}
@@ -1446,34 +1484,16 @@ const Admin = () => {
       </aside>
 
       {/* 2. Main Content Area */}
-      <main className="main-content">
+      <main className="main-content" data-lenis-prevent="true">
         {/* Top Header Bar */}
         <header className="top-header">
           <div className="header-left">
             <button className="toggle-sidebar-btn" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
               {isSidebarOpen ? '🡨' : '☰'}
             </button>
-            <div className="search-container">
-              <span className="search-icon">🔍</span>
-              <input
-                type="text"
-                placeholder="Search anything here..."
-                className="search-input"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
           </div>
 
           <div className="header-actions">
-            <div className="icon-badge-btn" title="Messages">
-              <span>✉️</span>
-              <span className="badge-count">5</span>
-            </div>
-            <div className="icon-badge-btn" title="Notifications">
-              <span>🔔</span>
-              <span className="badge-count">8</span>
-            </div>
             <div className="user-profile-badge">
               <div className="user-avatar">👤</div>
               <div className="user-info">
@@ -1493,12 +1513,16 @@ const Admin = () => {
                 <p className="welcome-subtitle">Here's what's happening with LifeDrop today.</p>
               </div>
               <div className="date-picker-badge">
-                <span>📅</span> May 30, 2026
+                <span>📅</span> {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
               </div>
             </div>
 
             <div className="stats-grid">
-              <div className="stat-card">
+              <div 
+                className="stat-card" 
+                onClick={() => setCurrentView("all-users")}
+                style={{ cursor: "pointer" }}
+              >
                 <div className="stat-icon-container users">👥</div>
                 <div className="stat-details">
                   <span className="stat-label">Total Users</span>
@@ -1578,7 +1602,7 @@ const Admin = () => {
                 <div className="pie-chart-wrapper">
                   {renderDonutChart()}
                   <div className="pie-legend">
-                    {bloodGroupStats.list.slice(0, 5).map((bg) => (
+                    {bloodGroupStats.list.map((bg) => (
                       <div className="legend-item" key={bg.label}>
                         <div className="legend-left">
                           <span className="legend-color" style={{ backgroundColor: bg.color }} />
@@ -1647,47 +1671,6 @@ const Admin = () => {
                 </div>
               </div>
 
-              <div className="d-flex flex-column gap-4">
-                <div className="activity-card">
-                  <h3 className="chart-title mb-4">Recent Activity</h3>
-                  <div className="activity-timeline">
-                    <div className="activity-item">
-                      <div className="activity-icon-wrap user">👤</div>
-                      <div className="activity-details">
-                        <span className="activity-title">New donor registered</span>
-                        <span className="activity-desc">Ravi Kumar signed up.</span>
-                        <span className="activity-time">10 mins ago</span>
-                      </div>
-                    </div>
-                    <div className="activity-item">
-                      <div className="activity-icon-wrap camp">⛺</div>
-                      <div className="activity-details">
-                        <span className="activity-title">New camp added</span>
-                        <span className="activity-desc">City Hospital Blood Camp.</span>
-                        <span className="activity-time">1 hour ago</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="quick-actions-card">
-                  <h3 className="chart-title mb-4">Quick Actions</h3>
-                  <div className="actions-grid">
-                    <div className="action-box" onClick={() => setShowAddCampModal(true)}>
-                      <span className="action-box-icon">⛺</span>
-                      <span>Organize Camp</span>
-                    </div>
-                    <div className="action-box" onClick={() => setCurrentView("users")}>
-                      <span className="action-box-icon">📋</span>
-                      <span>Export Data</span>
-                    </div>
-                    <div className="action-box" onClick={() => setCurrentView("organizers")}>
-                      <span className="action-box-icon">🤝</span>
-                      <span>View Organizers</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
           </>
         )}
@@ -1867,7 +1850,6 @@ const Admin = () => {
                 </table>
               </div>
             )}
-
             {/* --- Camp Photos Modal --- */}
             {photosCampId && photosCampObj && (
               <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
@@ -1917,6 +1899,57 @@ const Admin = () => {
               </div>
             )}
 
+          </div>
+        )}
+
+        {/* --- All Platform Users Tab View --- */}
+        {currentView === "all-users" && (
+          <div className="chart-card mt-4">
+            <div className="d-flex justify-content-between align-items-center mb-4">
+              <h2 className="text-primary fw-bold m-0">All Platform Users</h2>
+              <button className="btn btn-outline-secondary" onClick={fetchAllUsers}>
+                Refresh List
+              </button>
+            </div>
+
+            <div className="custom-table-container">
+              {loadingAllUsers ? (
+                <p className="text-center py-4">Loading users...</p>
+              ) : allUsers.length === 0 ? (
+                <p className="text-center py-4 text-muted">No users found.</p>
+              ) : (
+                <table className="premium-table">
+                  <thead>
+                    <tr>
+                      <th>Sr.</th>
+                      <th>Name</th>
+                      <th>Role</th>
+                      <th>Blood Group</th>
+                      <th>City</th>
+                      <th>Mobile</th>
+                      <th>Total Donations</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allUsers.map((user, idx) => (
+                      <tr key={user._id}>
+                        <td className="donor-table-id">#{idx + 1}</td>
+                        <td className="fw-bold">{user.name}</td>
+                        <td>
+                          <span className={`status-badge ${user.role === "donor" ? "fulfilled" : user.role === "organizer" ? "active" : "pending"}`}>
+                            {user.role}
+                          </span>
+                        </td>
+                        <td><span className="donor-table-group">{user.bloodGroup || "-"}</span></td>
+                        <td>{user.city || "-"}</td>
+                        <td>{user.mobile || user.phone || "-"}</td>
+                        <td>{user.totalDonations || 0}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
         )}
 
@@ -2140,7 +2173,7 @@ const Admin = () => {
                   <div className="col-lg-6" key={e._id}>
                     <div className={`card h-100 shadow-sm border-2 border-${e.status === "pending" ? "warning" : e.status === "approved" ? "success" : "secondary"}`}>
                       <div className="card-header bg-transparent d-flex justify-content-between align-items-center">
-                        <h5 className="mb-0 text-danger fw-bold">{e.campName}</h5>
+                        <h5 className="mb-0 text-danger fw-bold">{e.organizationName || e.organizationType || "Camp Enquiry"}</h5>
                         <span className={`badge ${e.status === "pending" ? "bg-warning text-dark" : e.status === "approved" ? "bg-success" : "bg-secondary"}`}>
                           {e.status.toUpperCase()}
                         </span>
@@ -2156,9 +2189,9 @@ const Admin = () => {
                           </div>
                           <div className="col-sm-6 mb-3">
                             <h6 className="text-muted text-uppercase small fw-bold">Camp Details</h6>
-                            <div className="small">📅 {e.campDate ? new Date(e.campDate).toLocaleDateString() : "TBA"}</div>
-                            <div className="small">📍 {e.campLocation}</div>
-                            <div className="small">🏥 {e.hospitalName}</div>
+                            <div className="small">📅 {e.preferredDate ? new Date(e.preferredDate).toLocaleDateString() : "TBA"} {e.preferredTime ? `(${e.preferredTime})` : ""}</div>
+                            <div className="small">📍 {e.area || "N/A"}</div>
+                            <div className="small">👥 Expected Donors: {e.expectedDonors || "N/A"}</div>
                           </div>
                         </div>
 
@@ -2318,14 +2351,17 @@ const Admin = () => {
                             }
                           }
                         }}
-                        className={`w-full p-2.5 rounded-lg border-2 font-bold text-sm outline-none cursor-pointer appearance-none ${req.status === 'pending' ? 'border-amber-200 bg-amber-50 text-amber-700 focus:border-amber-400' :
+                        className={`w-full p-2.5 rounded-lg border-2 font-bold text-sm outline-none cursor-pointer appearance-none ${
+                          req.status === 'pending' ? 'border-amber-200 bg-amber-50 text-amber-700 focus:border-amber-400' :
                           req.status === 'active' ? 'border-blue-200 bg-blue-50 text-blue-700 focus:border-blue-400' :
-                            'border-green-200 bg-green-50 text-green-700 focus:border-green-400'
-                          }`}
+                          req.status === 'accepted' ? 'border-purple-200 bg-purple-50 text-purple-700 focus:border-purple-400' :
+                          'border-green-200 bg-green-50 text-green-700 focus:border-green-400'
+                        }`}
                       >
                         <option value="pending">⏳ Pending Review</option>
                         <option value="active">📡 Active (Notifying Donors)</option>
-                        <option value="fulfilled">✅ Fulfilled</option>
+                        <option value="accepted">🤝 Accepted (Blood Arranged)</option>
+                        <option value="completed">✅ Donation Completed</option>
                       </select>
 
                       <div className="text-[10px] text-slate-400 font-medium text-center">
@@ -2612,6 +2648,19 @@ const Admin = () => {
         <footer className="copyright-footer">
           © 2026 LifeDrop Admin Dashboard. All rights reserved.
         </footer>
+        {/* --- 9. Blood Bank Requests --- */}
+        {currentView === "blood-bank-requests" && (
+          <div className="fade-in">
+            <AdminBloodBankRequests />
+          </div>
+        )}
+
+        {/* --- 10. Blood Banks --- */}
+        {currentView === "blood-banks" && (
+          <div className="fade-in">
+            <AdminBloodBanks />
+          </div>
+        )}
       </main>
 
       {/* --- ADD CAMP MODAL --- */}

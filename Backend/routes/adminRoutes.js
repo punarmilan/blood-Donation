@@ -12,6 +12,10 @@ import User from "../models/User.js";
 
 import { verifyToken } from "../middleware/authMiddleware.js";
 import { getIo } from "../socket.js";
+import BloodBank from "../models/BloodBank.js";
+import { sendEmail } from "../utils/sendEmail.js";
+import { emailTemplates } from "../utils/emailTemplates.js";
+import crypto from "crypto";
 
 const router = express.Router();
 // 🔑 RESET ORGANIZER PASSWORD (FOR APPROVED ENQUIRY)
@@ -135,6 +139,18 @@ router.get("/users/count", verifyToken, async (req, res) => {
 });
 
 /* ======================================================
+   ADMIN: GET ALL USERS
+====================================================== */
+router.get("/users", verifyToken, async (req, res) => {
+  try {
+    const users = await User.find().select("-password").sort({ createdAt: -1 });
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch users", error: err.message });
+  }
+});
+
+/* ======================================================
    ADMIN: GET ALL BLOOD REQUESTS
 ====================================================== */
 router.get("/blood-requests", verifyToken, async (req, res) => {
@@ -164,6 +180,14 @@ router.patch("/blood-requests/:id/status", verifyToken, async (req, res) => {
 
     request.status = status;
 
+    // Clear donor assignment fields if status is reverted to active or pending
+    if (status === "active" || status === "pending") {
+      request.acceptedBy = undefined;
+      request.acceptedAt = undefined;
+      request.otp = undefined;
+      request.completedAt = undefined;
+    }
+
     // Update timestamps based on status
     let newlyActivated = false;
     if (status === "active" && !request.donorsNotifiedAt) {
@@ -179,11 +203,12 @@ router.patch("/blood-requests/:id/status", verifyToken, async (req, res) => {
     // If just activated, create notifications and emit socket events
     if (newlyActivated) {
       try {
-        // Find matching available donors
+        // Find matching available donors (excluding the requester)
         const matchingDonors = await User.find({
           role: "donor",
           isAvailable: true,
           bloodGroup: request.bloodGroup,
+          _id: { $ne: request.recipient }
         });
 
         if (matchingDonors.length > 0) {
@@ -435,6 +460,108 @@ router.post("/login", async (req, res) => {
     res.json({ success: true, token });
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+/* ======================================================
+   ADMIN: BLOOD BANK MANAGEMENT
+====================================================== */
+
+router.get("/blood-banks/pending", verifyToken, async (req, res) => {
+  try {
+    const bloodBanks = await BloodBank.find({ status: "pending" }).select("-password -passwordSetupToken -passwordSetupTokenExpires");
+    res.json({ success: true, data: bloodBanks });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+});
+
+router.get("/blood-banks", verifyToken, async (req, res) => {
+  try {
+    const { status, city, search } = req.query;
+    const query = {};
+    if (status) query.status = status;
+    if (city) query.city = new RegExp(city, "i");
+    if (search) {
+      query.$or = [
+        { name: new RegExp(search, "i") },
+        { licenseNumber: new RegExp(search, "i") },
+      ];
+    }
+    const bloodBanks = await BloodBank.find(query).select("-password -passwordSetupToken -passwordSetupTokenExpires");
+    res.json({ success: true, data: bloodBanks });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+});
+
+router.get("/blood-banks/:id", verifyToken, async (req, res) => {
+  try {
+    const bloodBank = await BloodBank.findById(req.params.id).select("-password -passwordSetupToken -passwordSetupTokenExpires");
+    if (!bloodBank) return res.status(404).json({ success: false, message: "Blood bank not found" });
+    res.json({ success: true, data: bloodBank });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+});
+
+router.put("/blood-banks/:id/approve", verifyToken, async (req, res) => {
+  try {
+    const bloodBank = await BloodBank.findById(req.params.id);
+    if (!bloodBank) return res.status(404).json({ success: false, message: "Blood bank not found" });
+    if (bloodBank.status === "approved") return res.status(400).json({ success: false, message: "Already approved" });
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    const setupLink = `${frontendUrl}/blood-bank/set-password?token=${token}&email=${encodeURIComponent(bloodBank.email)}`;
+
+    bloodBank.status = "approved";
+    bloodBank.isVerified = true;
+    bloodBank.passwordSetupToken = token;
+    bloodBank.passwordSetupTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    bloodBank.approvedAt = new Date();
+    bloodBank.approvedBy = req.admin.id;
+
+    await bloodBank.save();
+
+    await sendEmail({
+      to: bloodBank.email,
+      subject: "Blood Bank Registration Approved - Set Your Password",
+      html: emailTemplates.bloodBankApproval(bloodBank.name, bloodBank.managerName, bloodBank.email, setupLink),
+    });
+
+    res.json({ success: true, message: "Blood bank approved and email sent." });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
+  }
+});
+
+router.put("/blood-banks/:id/reject", verifyToken, async (req, res) => {
+  try {
+    const { rejectionReason } = req.body;
+    if (!rejectionReason) return res.status(400).json({ success: false, message: "Rejection reason required" });
+
+    const bloodBank = await BloodBank.findById(req.params.id);
+    if (!bloodBank) return res.status(404).json({ success: false, message: "Blood bank not found" });
+    if (bloodBank.status === "rejected") return res.status(400).json({ success: false, message: "Already rejected" });
+
+    bloodBank.status = "rejected";
+    bloodBank.isVerified = false;
+    bloodBank.rejectionReason = rejectionReason;
+    bloodBank.rejectedAt = new Date();
+    bloodBank.rejectedBy = req.admin.id;
+
+    await bloodBank.save();
+
+    await sendEmail({
+      to: bloodBank.email,
+      subject: "Blood Bank Registration Update",
+      html: emailTemplates.bloodBankRejection(bloodBank.name, bloodBank.managerName, rejectionReason),
+    });
+
+    res.json({ success: true, message: "Blood bank rejected and email sent." });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 });
 

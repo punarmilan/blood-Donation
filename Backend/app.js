@@ -28,7 +28,6 @@ import publicRoutes from "./routes/publicRoutes.js";
 import bloodRequestBackgroundRoutes from "./routes/bloodRequestBackgroundRoutes.js";
 import bloodBankRoutes from "./routes/bloodBankRoutes.js";
 import donorHealthRoutes from "./routes/donorHealthRoutes.js";
-import { connectToWhatsApp } from "./whatsapp/waClient.js";
 
 const app = express();
 app.set("trust proxy", 1); // Trust reverse proxy to get correct protocol (https)
@@ -42,6 +41,7 @@ app.use(
     origin: (origin, callback) => {
       const allowed = [
         "http://localhost:5173",
+        "http://localhost:5174",
         "http://localhost:3000",
         "https://blooddonation.store",
         "https://www.blooddonation.store",
@@ -129,7 +129,7 @@ app.post("/api/admin/upload", upload.single("file"), (req, res) => {
 connectDB()
   .then(() => {
     initializeAdmin();
-    connectToWhatsApp();
+    // Removed global connectToWhatsApp() - now handled per organizer
   })
   .catch((err) => {
     console.error("❌ DB init failed:", err.message);

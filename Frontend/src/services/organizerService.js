@@ -53,6 +53,18 @@ const organizerService = {
     const res = await api.delete(`/organizer/donor/${id}`);
     return res.data;
   },
+  getWhatsAppStatus: async () => {
+    const res = await api.get("/organizer/whatsapp/status");
+    return res.data;
+  },
+  startWhatsApp: async () => {
+    const res = await api.post("/organizer/whatsapp/start");
+    return res.data;
+  },
+  disconnectWhatsApp: async () => {
+    const res = await api.post("/organizer/whatsapp/disconnect");
+    return res.data;
+  },
 };
 
 export default organizerService;

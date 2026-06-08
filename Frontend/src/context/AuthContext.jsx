@@ -88,6 +88,7 @@ export const AuthProvider = ({ children }) => {
     sendOtp,
     verifyOtpAndRegister,
     logout,
+    setCurrentUser,
   };
 
   return (

@@ -68,7 +68,13 @@ const RequestStatus = () => {
   };
 
   const getStatusLevel = (req) => {
-    if (req.fulfilledAt) return 4;
+    if (req.status === 'completed') return 4;
+    if (req.status === 'accepted' || req.status === 'fulfilled') return 3;
+    if (req.status === 'active') return 2;
+    if (req.status === 'pending') return 0;
+    
+    // Fallback to timestamps if status is somehow missing
+    if (req.completedAt) return 4;
     if (req.acceptedAt) return 3;
     if (req.donorsNotifiedAt) return 2;
     if (req.adminSeenAt) return 1;
@@ -217,21 +223,21 @@ const RequestStatus = () => {
               </div>
 
               <div className="relative pl-4 md:pl-8 py-2 space-y-8">
-                {/* Vertical connecting line */}
-                <div className="absolute left-[23px] md:left-[39px] top-6 bottom-6 w-px bg-zinc-200"></div>
-                
-                {/* Progress line */}
-                <div 
-                  className="absolute left-[23px] md:left-[39px] top-6 w-px bg-red-600 transition-all duration-1000 ease-out" 
-                  style={{ height: `${(currentStep / 4) * 100}%` }}
-                ></div>
+                {/* Progress Lines Container */}
+                <div className="absolute left-[23px] md:left-[39px] top-6 bottom-8 w-px bg-zinc-200">
+                  {/* Progress line */}
+                  <div 
+                    className="absolute left-0 top-0 w-full bg-red-600 transition-all duration-1000 ease-out" 
+                    style={{ height: `${(currentStep / 4) * 100}%` }}
+                  ></div>
+                </div>
 
                 {[
                   { step: 0, title: "Request Submitted", time: request.createdAt, desc: "Blood request has been registered in the system." },
                   { step: 1, title: "Admin Verification", time: request.adminSeenAt, desc: "Request details verified by blood bank administrators." },
                   { step: 2, title: "Donors Notified", time: request.donorsNotifiedAt, desc: "Local matching donors have been alerted." },
                   { step: 3, title: "Blood Arranged", time: request.acceptedAt, desc: "Donor has confirmed and arrangement is in process." },
-                  { step: 4, title: "Fulfilled", time: request.fulfilledAt, desc: "Donation completed successfully." },
+                  { step: 4, title: "Donation Completed", time: request.completedAt, desc: "Donation successfully completed via OTP." },
                 ].map((item, i) => {
                   const isCompleted = currentStep >= item.step;
                   const isActive = currentStep === item.step;
@@ -249,7 +255,9 @@ const RequestStatus = () => {
                       <div className={`flex-1 ${!isCompleted && !isActive ? 'opacity-50' : ''}`}>
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-1">
                           <h4 className={`text-sm font-bold ${isCompleted ? 'text-zinc-900' : 'text-zinc-600'}`}>{item.title}</h4>
-                          <span className="text-[11px] text-zinc-500 font-medium">{formatTimeOnly(item.time)}</span>
+                          <span className="text-[11px] text-zinc-500 font-medium">
+                            {isCompleted && item.time ? formatTimeOnly(item.time) : "Pending"}
+                          </span>
                         </div>
                         <p className="text-xs text-zinc-500 leading-relaxed">{item.desc}</p>
                       </div>
@@ -263,6 +271,26 @@ const RequestStatus = () => {
 
           {/* SIDEBAR - Right Side */}
           <div className="space-y-6">
+
+            {/* DONOR INFO (IF ACCEPTED) */}
+            {request.acceptedBy && (
+              <div className="bg-white border border-emerald-200 rounded-xl p-6 shadow-sm">
+                <div className="flex items-center gap-2 mb-4 border-b border-emerald-100 pb-4">
+                  <UserCheck size={18} className="text-emerald-500" />
+                  <h3 className="text-sm font-bold text-emerald-800 uppercase tracking-widest">Donor Assigned</h3>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-base font-bold text-zinc-900 mb-0.5">{request.acceptedBy.name}</div>
+                    <div className="text-sm text-zinc-500 font-medium">{request.acceptedBy.mobile}</div>
+                  </div>
+                  <a href={`tel:${request.acceptedBy.mobile}`} className="w-10 h-10 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 rounded-full flex items-center justify-center transition-colors">
+                    <PhoneCall size={16} className="text-emerald-600" />
+                  </a>
+                </div>
+              </div>
+            )}
             
             {/* ARRIVAL ESTIMATE */}
             <div className="bg-white border border-zinc-200 rounded-xl p-6 shadow-sm">
@@ -299,7 +327,7 @@ const RequestStatus = () => {
             </div>
 
             {/* SUPPORT DESK */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 text-white shadow-sm">
+            {/* <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 text-white shadow-sm">
               <h3 className="text-sm font-bold text-white uppercase tracking-widest mb-2">Support Desk</h3>
               <p className="text-xs text-zinc-400 mb-5 leading-relaxed">Our emergency team is available 24/7 for immediate assistance.</p>
               
@@ -310,7 +338,7 @@ const RequestStatus = () => {
                 </div>
                 <ChevronRight size={16} className="text-zinc-400" />
               </button>
-            </div>
+            </div> */}
 
           </div>
         </div>

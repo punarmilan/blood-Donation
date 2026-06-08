@@ -1,6 +1,6 @@
 import express from 'express';
 import mongoose from 'mongoose';
-import { sendMessage, getConnectionStatus } from '../whatsapp/waClient.js';
+import { sendMessage, getOrganizerConnectionStatus } from '../whatsapp/waClient.js';
 import messages from '../whatsapp/waMessages.js';
 import { verifyOrganizerToken } from '../middleware/authMiddleware.js';
 import Camp from '../models/Camp.js';
@@ -8,14 +8,16 @@ import Camp from '../models/Camp.js';
 const router = express.Router();
 
 // Check WhatsApp connection status
-router.get('/status', (req, res) => {
-  res.json({ connected: getConnectionStatus() });
+router.get('/status', verifyOrganizerToken, (req, res) => {
+  res.json({ connected: getOrganizerConnectionStatus(req.organizer._id.toString()) });
 });
 
 // Share camp on WhatsApp — organizer button click
 router.post('/share-camp', verifyOrganizerToken, async (req, res) => {
   try {
     const { campId, phone } = req.body;
+    const organizerId = req.organizer._id.toString();
+
     const query = { $or: [{ campId: campId }] };
     if (mongoose.Types.ObjectId.isValid(campId)) {
       query.$or.push({ _id: campId });
@@ -32,7 +34,7 @@ router.post('/share-camp', verifyOrganizerToken, async (req, res) => {
       camp.campId || camp._id
     );
 
-    const sent = await sendMessage(phone, msg);
+    const sent = await sendMessage(organizerId, phone, msg);
     res.json({ success: sent });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -43,6 +45,7 @@ router.post('/share-camp', verifyOrganizerToken, async (req, res) => {
 router.post('/share-report', verifyOrganizerToken, async (req, res) => {
   try {
     const { phone, totalCamps, totalDonors, totalUnits, totalLives } = req.body;
+    const organizerId = req.organizer._id.toString();
 
     const msg = 
 `\uD83E\uDE78 *Mera Blood Donation Impact Report*
@@ -57,7 +60,7 @@ Meri zariye itne logon ki zindagi bachi!
 
 *#BloodDonation #Raktdaan #SaveLives*`;
 
-    const sent = await sendMessage(phone, msg);
+    const sent = await sendMessage(organizerId, phone, msg);
     res.json({ success: sent });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -68,10 +71,12 @@ Meri zariye itne logon ki zindagi bachi!
 router.post('/send-message', verifyOrganizerToken, async (req, res) => {
   try {
     const { phone, message } = req.body;
+    const organizerId = req.organizer._id.toString();
+
     if (!phone || !message) {
       return res.status(400).json({ success: false, message: 'Phone aur message required hain' });
     }
-    const sent = await sendMessage(phone, message);
+    const sent = await sendMessage(organizerId, phone, message);
     res.json({ success: sent });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

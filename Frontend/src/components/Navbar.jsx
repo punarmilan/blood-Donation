@@ -130,20 +130,28 @@ export default function Navbar() {
             >
               <div className="flex flex-col py-2">
                 <NavLink
-                  to="/admin-login"
-                  className="px-4 py-2 text-[13px] font-bold text-zinc-300 hover:text-white hover:bg-red-600/10 transition-colors flex items-center gap-2 no-underline"
-                  onClick={() => setDropdownOpen(false)}
-                >
-                  <User className="w-4 h-4 text-red-500" />
-                  Admin Login
-                </NavLink>
-                <NavLink
                   to="/organizer-login"
                   className="px-4 py-2 text-[13px] font-bold text-zinc-300 hover:text-white hover:bg-red-600/10 transition-colors flex items-center gap-2 no-underline"
                   onClick={() => setDropdownOpen(false)}
                 >
                   <User className="w-4 h-4 text-red-500" />
                   Organization Login
+                </NavLink>
+                <NavLink
+                  to="/blood-bank/register"
+                  className="px-4 py-2 text-[13px] font-bold text-zinc-300 hover:text-white hover:bg-red-600/10 transition-colors flex items-center gap-2 no-underline"
+                  onClick={() => setDropdownOpen(false)}
+                >
+                  <User className="w-4 h-4 text-red-500" />
+                  Blood Bank Register
+                </NavLink>
+                <NavLink
+                  to="/blood-bank/login"
+                  className="px-4 py-2 text-[13px] font-bold text-zinc-300 hover:text-white hover:bg-red-600/10 transition-colors flex items-center gap-2 no-underline"
+                  onClick={() => setDropdownOpen(false)}
+                >
+                  <User className="w-4 h-4 text-red-500" />
+                  Blood Bank Login
                 </NavLink>
               </div>
             </div>
@@ -242,17 +250,6 @@ export default function Navbar() {
               >
                 <div className="flex flex-col gap-1 px-2 pb-2">
                   <NavLink
-                    to="/admin-login"
-                    className="flex items-center gap-2 px-4 py-3 rounded-lg text-[13px] font-bold text-zinc-300 hover:text-white hover:bg-red-600/10 transition-colors no-underline"
-                    onClick={() => {
-                      setOpen(false);
-                      setMobileLoginOpen(false);
-                    }}
-                  >
-                    <User className="w-4 h-4 text-red-500" />
-                    Admin Login
-                  </NavLink>
-                  <NavLink
                     to="/organizer-login"
                     className="flex items-center gap-2 px-4 py-3 rounded-lg text-[13px] font-bold text-zinc-300 hover:text-white hover:bg-red-600/10 transition-colors no-underline"
                     onClick={() => {
@@ -262,6 +259,28 @@ export default function Navbar() {
                   >
                     <User className="w-4 h-4 text-red-500" />
                     Organization Login
+                  </NavLink>
+                  <NavLink
+                    to="/blood-bank/register"
+                    className="flex items-center gap-2 px-4 py-3 rounded-lg text-[13px] font-bold text-zinc-300 hover:text-white hover:bg-red-600/10 transition-colors no-underline"
+                    onClick={() => {
+                      setOpen(false);
+                      setMobileLoginOpen(false);
+                    }}
+                  >
+                    <User className="w-4 h-4 text-red-500" />
+                    Blood Bank Register
+                  </NavLink>
+                  <NavLink
+                    to="/blood-bank/login"
+                    className="flex items-center gap-2 px-4 py-3 rounded-lg text-[13px] font-bold text-zinc-300 hover:text-white hover:bg-red-600/10 transition-colors no-underline"
+                    onClick={() => {
+                      setOpen(false);
+                      setMobileLoginOpen(false);
+                    }}
+                  >
+                    <User className="w-4 h-4 text-red-500" />
+                    Blood Bank Login
                   </NavLink>
                 </div>
               </div>

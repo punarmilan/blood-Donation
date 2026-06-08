@@ -11,12 +11,16 @@ const bloodRequestSchema = new mongoose.Schema({
   urgency: { type: String }, // "urgent" or "planned"
   neededBy: { type: String }, // "today/tomorrow/2-3days/week"
   additionalInfo: { type: String },
-  status: { type: String, default: "pending" }, // "pending" -> "active" -> "fulfilled" / "closed"
+  status: { type: String, default: "pending" }, // "pending" -> "active" -> "accepted" -> "completed"
   notifiedDonors: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   acceptedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  acceptedByBloodBank: { type: mongoose.Schema.Types.ObjectId, ref: "BloodBank" },
+  acceptedAt: { type: Date },
+  otp: { type: String },
   adminSeenAt: { type: Date },
   donorsNotifiedAt: { type: Date },
-  fulfilledAt: { type: Date },
+  fulfilledAt: { type: Date }, // Optional: keep for legacy or rename
+  completedAt: { type: Date },
 }, { timestamps: true });
 
 export default mongoose.model("BloodRequest", bloodRequestSchema);

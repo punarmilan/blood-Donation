@@ -18,10 +18,31 @@ const userSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
   isVerified: { type: Boolean, default: false },
   isAvailable: { type: Boolean, default: true },
+  
+  // WhatsApp connection metadata for organizers
+  whatsappConnected: { type: Boolean, default: false },
+  whatsappSessionId: { type: String, default: null },
+  whatsappNumber: { type: String, default: null },
+
   totalDonations: { type: Number, default: 0 },
   badge: { type: String, default: "new donor" },
   donationHistory: { type: Array, default: [] },
   nextEligibleDate: { type: Date },
+
+  // Added Basic Profile / Location / Availability Fields
+  address: { type: String },
+  state: { type: String },
+  pincode: { type: String },
+  latitude: { type: Number },
+  longitude: { type: Number },
+  availableForEmergency: { type: Boolean, default: true },
+  canTravelDistance: { type: Number, enum: [5, 10, 20] },
+  preferredContactMethod: { type: String, enum: ['Call', 'WhatsApp', 'SMS'], default: 'Call' },
+  emergencyContactName: { type: String },
+  emergencyContactNumber: { type: String },
+  profileCompleted: { type: Boolean, default: false },
+  locationAdded: { type: Boolean, default: false },
+
   health: {
     weight: { type: Number, min: 30, max: 200 },
     height: { type: Number, min: 100, max: 250 },

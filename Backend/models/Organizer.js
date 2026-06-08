@@ -18,6 +18,10 @@ const organizerSchema = new mongoose.Schema(
     // ✅ Change: Store multiple camps
     camps: [{ type: mongoose.Schema.Types.ObjectId, ref: "Camp" }],
 
+    whatsappConnected: { type: Boolean, default: false },
+    whatsappSessionId: { type: String, default: null },
+    whatsappNumber: { type: String, default: null },
+
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }

@@ -68,12 +68,24 @@ router.get("/my-requests", verifyToken, async (req, res) => {
   }
 });
 
+// @route   GET /api/request/my-donations
+// @desc    Get all requests accepted or completed by logged in donor
+// @access  Private
+router.get("/my-donations", verifyToken, async (req, res) => {
+  try {
+    const requests = await BloodRequest.find({ acceptedBy: req.user.id }).sort({ acceptedAt: -1 });
+    res.status(200).json({ success: true, data: requests });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
 // @route   GET /api/request/active
 // @desc    Get all active/pending emergency requests
 // @access  Public or Private (Donors)
 router.get("/active", async (req, res) => {
   try {
-    const requests = await BloodRequest.find({ status: { $in: ["active", "pending"] } })
+    const requests = await BloodRequest.find({ status: { $in: ["active"] } })
       .populate("recipient", "name mobile")
       .sort({ createdAt: -1 });
     res.status(200).json({ success: true, data: requests });
@@ -88,6 +100,7 @@ router.get("/active", async (req, res) => {
 router.get("/:requestId", async (req, res) => {
   try {
     const request = await BloodRequest.findOne({ requestId: req.params.requestId })
+      .select("-otp")
       .populate("recipient", "name mobile")
       .populate("acceptedBy", "name mobile");
       
@@ -127,6 +140,92 @@ router.patch("/:requestId/status", verifyToken, async (req, res) => {
     
     res.status(200).json({ success: true, message: "Status updated", data: request });
   } catch (error) {
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// @route   PATCH /api/request/:requestId/accept
+// @desc    Accept a blood request by a donor
+// @access  Private
+router.patch("/:requestId/accept", verifyToken, async (req, res) => {
+  try {
+    const request = await BloodRequest.findOne({ requestId: req.params.requestId });
+    if (!request) {
+      return res.status(404).json({ success: false, message: "Request not found" });
+    }
+
+    if (request.status === "completed" || request.status === "accepted" || request.acceptedBy) {
+      return res.status(400).json({ success: false, message: "Request already accepted or completed" });
+    }
+
+    request.acceptedBy = req.user.id;
+    request.status = "accepted";
+    request.acceptedAt = new Date();
+    request.otp = Math.floor(1000 + Math.random() * 9000).toString();
+
+    await request.save();
+
+    // Create Notification for the recipient
+    const Notification = (await import("../models/Notification.js")).default;
+    await Notification.create({
+      userId: request.recipient,
+      title: "✅ Request Accepted",
+      message: "Your blood request has been accepted by a donor. Check your dashboard for their contact details.",
+      type: "request_accepted",
+      bloodRequestId: request._id
+    });
+
+    res.status(200).json({ success: true, message: "Request accepted successfully", data: request });
+  } catch (error) {
+    console.error("Accept error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// @route   POST /api/request/:requestId/verify-otp
+// @desc    Verify OTP to complete the donation
+// @access  Private
+router.post("/:requestId/verify-otp", verifyToken, async (req, res) => {
+  try {
+    const { otp } = req.body;
+    const request = await BloodRequest.findOne({ requestId: req.params.requestId });
+
+    if (!request) {
+      return res.status(404).json({ success: false, message: "Request not found" });
+    }
+
+    if (request.status !== "accepted") {
+      return res.status(400).json({ success: false, message: "Request is not in accepted state" });
+    }
+
+    if (request.acceptedBy.toString() !== req.user.id) {
+      return res.status(403).json({ success: false, message: "Only the assigned donor can verify OTP" });
+    }
+
+    if (request.otp !== otp) {
+      return res.status(400).json({ success: false, message: "Invalid OTP" });
+    }
+
+    request.status = "completed";
+    request.completedAt = new Date();
+    // clear OTP if you want, but fine to keep for records or clear
+    // request.otp = undefined;
+
+    await request.save();
+
+    // Create Notification for the recipient that donation is complete
+    const Notification = (await import("../models/Notification.js")).default;
+    await Notification.create({
+      userId: request.recipient,
+      title: "🩸 Donation Completed",
+      message: "The donor has successfully completed the blood donation. Thank you!",
+      type: "donation_completed",
+      bloodRequestId: request._id
+    });
+
+    res.status(200).json({ success: true, message: "OTP Verified successfully, donation completed!", data: request });
+  } catch (error) {
+    console.error("Verify OTP error:", error);
     res.status(500).json({ success: false, message: "Server error" });
   }
 });

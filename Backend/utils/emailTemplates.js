@@ -116,5 +116,39 @@ export const emailTemplates = {
         <p style="font-style: italic; color: #666;">"Your blood donation is a lifesaver."</p>
       </div>
     </div>
+  `,
+
+  bloodBankApproval: (bloodBankName, managerName, email, setupLink) => `
+    <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #111; color: #eee; border-radius: 8px;">
+      <h2 style="color: #E11D48;">🎉 Blood Bank Approved</h2>
+      <p>Congratulations ${managerName},</p>
+      <p>Your registration for <strong>${bloodBankName}</strong> has been approved by the Admin!</p>
+      
+      <div style="background-color: #222; padding: 15px; border-radius: 5px; margin: 20px 0; border: 1px solid #E11D48;">
+        <h3 style="margin-top: 0; color: #E11D48;">Account Setup</h3>
+        <p><strong>Email:</strong> ${email}</p>
+        <p>You can now set up your secure password to access your dashboard and manage live inventory.</p>
+      </div>
+
+      <p>Please click the button below to set your password:</p>
+      <a href="${setupLink}" style="display: inline-block; padding: 10px 20px; background-color: #E11D48; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">Set My Password</a>
+      
+      <p style="color: #ffcc00; margin-top: 20px;"><strong>⚠️ Important Note:</strong> This setup link is valid for 24 hours.</p>
+    </div>
+  `,
+
+  bloodBankRejection: (bloodBankName, managerName, reason) => `
+    <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+      <h2 style="color: #E11D48;">Raktdaan - Blood Bank Registration Update</h2>
+      <p>Hello ${managerName},</p>
+      <p>We appreciate your interest in registering <strong>${bloodBankName}</strong> on the Raktdaan platform.</p>
+      <p>After careful review, we are currently unable to approve your registration.</p>
+      <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #E11D48; margin: 20px 0;">
+        <p><strong>Reason:</strong> ${reason}</p>
+      </div>
+      <p>If you believe this was an error, please contact support.</p>
+      <p>Regards,<br/>Raktdaan Team</p>
+    </div>
   `
 };
+

@@ -13,6 +13,10 @@ const adminService = {
     const res = await api.get("/admin/users/count");
     return res.data.count;
   },
+  getAllUsers: async () => {
+    const res = await api.get("/admin/users");
+    return res.data;
+  },
   updateOrganizer: async (id, data) => {
     const res = await api.put(`/admin/organizers/${id}`, data);
     return res.data;
@@ -53,28 +57,20 @@ const adminService = {
     const res = await api.patch(`/admin/blood-requests/${id}/status`, { status });
     return res.data;
   },
-  getBloodBanks: async () => {
-    const res = await api.get("/blood-banks/admin/all");
-    return res.data.data;
-  },
-  createBloodBank: async (data) => {
-    const res = await api.post("/blood-banks/admin", data);
+  getBloodBanks: async (params) => {
+    const res = await api.get("/admin/blood-banks", { params });
     return res.data;
   },
-  updateBloodBank: async (id, data) => {
-    const res = await api.put(`/blood-banks/admin/${id}`, data);
+  getPendingBloodBanks: async () => {
+    const res = await api.get("/admin/blood-banks/pending");
     return res.data;
   },
-  deleteBloodBank: async (id) => {
-    const res = await api.delete(`/blood-banks/admin/${id}`);
+  approveBloodBank: async (id) => {
+    const res = await api.put(`/admin/blood-banks/${id}/approve`);
     return res.data;
   },
-  toggleBloodBankStatus: async (id) => {
-    const res = await api.patch(`/blood-banks/admin/${id}/status`);
-    return res.data;
-  },
-  geocodeAddress: async (address) => {
-    const res = await api.post("/blood-banks/admin/geocode", { address });
+  rejectBloodBank: async (id, rejectionReason) => {
+    const res = await api.put(`/admin/blood-banks/${id}/reject`, { rejectionReason });
     return res.data;
   },
 };

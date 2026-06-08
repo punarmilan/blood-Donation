@@ -77,6 +77,49 @@ router.get("/me", verifyToken, async (req, res) => {
   }
 });
 
+// Update Current User Profile (Basic/Location/Availability ONLY)
+router.put("/me", verifyToken, async (req, res) => {
+  try {
+    const { 
+      name, bloodGroup, city, state, pincode, address, 
+      latitude, longitude, availableForEmergency, 
+      canTravelDistance, preferredContactMethod, 
+      emergencyContactName, emergencyContactNumber 
+    } = req.body;
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    // Update only basic and location fields explicitly (prevents health data override)
+    if (name !== undefined) user.name = name;
+    if (bloodGroup !== undefined) user.bloodGroup = bloodGroup;
+    if (city !== undefined) user.city = city;
+    if (state !== undefined) user.state = state;
+    if (pincode !== undefined) user.pincode = pincode;
+    if (address !== undefined) user.address = address;
+    if (latitude !== undefined) user.latitude = latitude;
+    if (longitude !== undefined) user.longitude = longitude;
+    if (availableForEmergency !== undefined) user.availableForEmergency = availableForEmergency;
+    if (canTravelDistance !== undefined) user.canTravelDistance = canTravelDistance;
+    if (preferredContactMethod !== undefined) user.preferredContactMethod = preferredContactMethod;
+    if (emergencyContactName !== undefined) user.emergencyContactName = emergencyContactName;
+    if (emergencyContactNumber !== undefined) user.emergencyContactNumber = emergencyContactNumber;
+
+    // Compute completion flags dynamically
+    const isProfileCompleted = !!(user.name && user.bloodGroup && user.city && user.state);
+    const isLocationAdded = !!(user.address && user.latitude && user.longitude);
+    user.profileCompleted = isProfileCompleted;
+    user.locationAdded = isLocationAdded;
+
+    await user.save();
+
+    res.status(200).json({ success: true, message: "Profile updated successfully", user });
+  } catch (error) {
+    console.error("Update profile error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
 // Logout
 router.post("/logout", (req, res) => {
   // Since we use stateless JWT, client handles token deletion. Just send a success message.

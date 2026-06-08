@@ -5,8 +5,11 @@ import {
   LogOut, User, Droplet, Calendar, Award, Heart, 
   Search, FileText, AlertCircle, MessageSquare, 
   Settings, HelpCircle, MapPin, Clock, ArrowRight, Star, Activity, Bell,
-  LayoutDashboard
+  LayoutDashboard, Check
 } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
+import html2canvas from "html2canvas";
+import { toast } from "react-hot-toast";
 import dashboardImg from "../assets/dashbord.png";
 import { io } from "socket.io-client";
 import notificationService from "../services/notificationService";
@@ -14,7 +17,7 @@ import api from "../services/api";
 import DonorHealthDetails from "../components/DonorHealthDetails";
 
 const Dashboard = () => {
-  const { currentUser, logout, loading } = useAuth();
+  const { currentUser, setCurrentUser, logout, loading } = useAuth();
   const navigate = useNavigate();
   const { tab } = useParams();
   const [activeTab, setActiveTab] = useState("Dashboard");
@@ -25,6 +28,7 @@ const Dashboard = () => {
     else if (tab === "emergency") setActiveTab("Emergency");
     else if (tab === "profile") setActiveTab("My Profile");
     else if (tab === "health-details") setActiveTab("Health Details");
+    else if (tab === "my-requests") setActiveTab("My Requests");
     else setActiveTab("Dashboard");
   }, [tab]);
 
@@ -34,6 +38,7 @@ const Dashboard = () => {
     else if (label === "Emergency") navigate("/dashboard/emergency");
     else if (label === "My Profile") navigate("/dashboard/profile");
     else if (label === "Health Details") navigate("/dashboard/health-details");
+    else if (label === "My Requests") navigate("/dashboard/my-requests");
     else navigate("/dashboard");
   };
   
@@ -41,7 +46,26 @@ const Dashboard = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showDropdown, setShowDropdown] = useState(false);
   const [activeRequests, setActiveRequests] = useState([]);
+  const [myRequests, setMyRequests] = useState([]);
+  const [myDonations, setMyDonations] = useState([]);
+  const [otpInputs, setOtpInputs] = useState({});
   const [healthSummary, setHealthSummary] = useState(null);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [profileData, setProfileData] = useState({
+    name: "",
+    bloodGroup: "O-",
+    city: "",
+    state: "",
+    pincode: "",
+    address: "",
+    latitude: "",
+    longitude: "",
+    availableForEmergency: true,
+    canTravelDistance: 5,
+    preferredContactMethod: "Call",
+    emergencyContactName: "",
+    emergencyContactNumber: ""
+  });
   const socketRef = useRef(null);
 
   useEffect(() => {
@@ -54,7 +78,25 @@ const Dashboard = () => {
     if (currentUser) {
       fetchNotifications();
       fetchActiveRequests();
+      fetchMyRequests();
+      fetchMyDonations();
       fetchHealthSummary();
+
+      setProfileData({
+        name: currentUser.name || "",
+        bloodGroup: currentUser.bloodGroup || "O-",
+        city: currentUser.city || "",
+        state: currentUser.state || "",
+        pincode: currentUser.pincode || "",
+        address: currentUser.address || "",
+        latitude: currentUser.latitude || "",
+        longitude: currentUser.longitude || "",
+        availableForEmergency: currentUser.availableForEmergency !== undefined ? currentUser.availableForEmergency : true,
+        canTravelDistance: currentUser.canTravelDistance || 5,
+        preferredContactMethod: currentUser.preferredContactMethod || "Call",
+        emergencyContactName: currentUser.emergencyContactName || "",
+        emergencyContactNumber: currentUser.emergencyContactNumber || ""
+      });
 
       // Setup socket
       const socketUrl = import.meta.env.VITE_SOCKET_URL || "/";
@@ -88,9 +130,49 @@ const Dashboard = () => {
   const fetchActiveRequests = async () => {
     try {
       const res = await api.get("/request/active");
-      setActiveRequests(res.data.data || []);
+      const activeData = res.data.data || [];
+      // Don't show the donor's own requests in the emergency tab
+      const filtered = activeData.filter(req => {
+        if (!req.recipient) return true;
+        const recipientId = typeof req.recipient === 'object' ? req.recipient._id : req.recipient;
+        return recipientId !== currentUser._id;
+      });
+      setActiveRequests(filtered);
     } catch (err) {
       console.error("Failed to fetch active requests", err);
+    }
+  };
+
+  const fetchMyRequests = async () => {
+    try {
+      const res = await api.get("/request/my-requests");
+      setMyRequests(res.data.data || []);
+    } catch (err) {
+      console.error("Failed to fetch my requests", err);
+    }
+  };
+
+  const fetchMyDonations = async () => {
+    try {
+      const res = await api.get("/request/my-donations");
+      setMyDonations(res.data.data || []);
+    } catch (err) {
+      console.error("Failed to fetch my donations", err);
+    }
+  };
+
+  const handleVerifyOtp = async (requestId) => {
+    const otp = otpInputs[requestId];
+    if (!otp || otp.length !== 4) {
+      alert("Please enter a valid 4-digit OTP.");
+      return;
+    }
+    try {
+      const res = await api.post(`/request/${requestId}/verify-otp`, { otp });
+      alert(res.data.message || "OTP Verified Successfully!");
+      fetchMyDonations();
+    } catch (err) {
+      alert(err.response?.data?.message || "Invalid OTP or error occurred.");
     }
   };
 
@@ -114,6 +196,16 @@ const Dashboard = () => {
     }
   };
 
+  const handleAcceptRequest = async (requestId) => {
+    try {
+      await api.patch(`/request/${requestId}/accept`);
+      fetchActiveRequests();
+      alert("Request accepted successfully! You can now contact the requester.");
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to accept request");
+    }
+  };
+
   if (loading || !currentUser) {
     return (
       <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center">
@@ -131,6 +223,7 @@ const Dashboard = () => {
     { icon: LayoutDashboard, label: "Dashboard" },
     { icon: Activity, label: "Health Details" },
     { icon: Droplet, label: "My Donations" },
+    { icon: FileText, label: "My Requests" },
     { icon: FileText, label: "My Certificates" },
     { icon: AlertCircle, label: "Emergency", badge: activeRequests.length },
     { icon: User, label: "My Profile" },
@@ -154,59 +247,441 @@ const Dashboard = () => {
     { title: "Hero Donor", desc: "10+ Donations", icon: Star, color: "text-yellow-500", bg: "bg-yellow-50" },
   ];
 
+  const downloadCertificate = async (reqId) => {
+    const certElement = document.getElementById(`certificate-${reqId}`);
+    if (!certElement) return;
+
+    try {
+      toast.loading("Generating certificate...", { id: "cert-toast" });
+      const canvas = await html2canvas(certElement, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
+      const image = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.href = image;
+      link.download = `LifeDrop_Certificate_${reqId}.png`;
+      link.click();
+      toast.success("Certificate downloaded successfully!", { id: "cert-toast" });
+    } catch (error) {
+      console.error("Error downloading certificate:", error);
+      toast.error("Failed to download certificate.", { id: "cert-toast" });
+    }
+  };
+
+  const handleProfileChange = (e) => {
+    setProfileData({ ...profileData, [e.target.name]: e.target.value });
+  };
+
+  const handleLocationFetch = () => {
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser");
+      return;
+    }
+    toast.loading("Fetching location...", { id: "loc" });
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setProfileData(prev => ({
+          ...prev,
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        }));
+        toast.success("Location fetched successfully!", { id: "loc" });
+      },
+      (error) => {
+        toast.error("Failed to get location. Please allow access.", { id: "loc" });
+      }
+    );
+  };
+
+  const handleProfileSave = async (e) => {
+    e.preventDefault();
+    setIsSavingProfile(true);
+    try {
+      const res = await api.put("/auth/me", profileData);
+      if (res.data.success) {
+        toast.success("Profile updated successfully!");
+        setCurrentUser(res.data.user);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to update profile");
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case "Health Details":
         return <DonorHealthDetails currentUser={currentUser} onUpdate={fetchHealthSummary} />;
       case "My Profile":
+        const profilePercent = currentUser?.profileCompleted && currentUser?.locationAdded && healthSummary ? 100 :
+                               currentUser?.profileCompleted && currentUser?.locationAdded ? 75 :
+                               currentUser?.profileCompleted ? 50 : 25;
         return (
-          <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 border-b border-gray-100 pb-4">My Profile</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-6 max-w-4xl mx-auto">
+            {/* Top Header */}
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
-                <label className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2 block">Full Name</label>
-                <input type="text" value={currentUser.name || ""} disabled className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none" />
+                <h2 className="text-2xl font-bold text-gray-900 leading-tight">My Profile</h2>
+                <p className="text-sm text-gray-500 mt-1">Manage your basic profile, location and availability</p>
               </div>
-              <div>
-                <label className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2 block">Blood Group</label>
-                <input type="text" value={currentUser.bloodGroup || "O-"} disabled className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none" />
+              <button 
+                onClick={handleProfileSave} 
+                disabled={isSavingProfile}
+                className="px-6 py-2.5 bg-[#E74C3C] hover:bg-red-700 disabled:opacity-70 rounded-xl text-white font-medium transition-all shadow-sm flex items-center gap-2"
+              >
+                {isSavingProfile ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+
+            {/* Profile Completion Card */}
+            <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider">Profile Status</h3>
+                <span className="text-red-600 font-bold">{profilePercent}% Completed</span>
               </div>
-              <div>
-                <label className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2 block">Phone Number</label>
-                <input type="text" value={currentUser.mobile || ""} disabled className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none" />
+              <div className="w-full bg-gray-100 h-2 rounded-full mb-6 overflow-hidden">
+                <div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: `${profilePercent}%` }}></div>
               </div>
-              <div>
-                <label className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2 block">City</label>
-                <input type="text" placeholder="e.g. Pune" className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500 transition-colors" />
+              <div className="flex flex-wrap gap-3">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                  <Check size={12} /> Mobile Verified
+                </span>
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${currentUser?.locationAdded ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
+                  {currentUser?.locationAdded ? <Check size={12} /> : <AlertCircle size={12} />} 
+                  {currentUser?.locationAdded ? 'Location Added' : 'Location Not Added'}
+                </span>
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${healthSummary ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
+                  {healthSummary ? <Check size={12} /> : <AlertCircle size={12} />}
+                  {healthSummary ? 'Health Profile Completed' : 'Health Profile Pending'}
+                </span>
               </div>
             </div>
-            <button className="mt-8 px-6 py-3 bg-[#E74C3C] hover:bg-red-700 rounded-xl text-white font-medium transition-all shadow-sm">Save Changes</button>
+
+            <form onSubmit={handleProfileSave} className="space-y-6">
+              {/* Basic Information */}
+              <div className="bg-white rounded-2xl p-6 md:p-8 border border-gray-100 shadow-sm">
+                <h3 className="text-lg font-bold text-gray-900 mb-6 border-b border-gray-100 pb-3 flex items-center gap-2">
+                  <User size={18} className="text-red-500" /> Basic Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2 block">Full Name *</label>
+                    <input required type="text" name="name" value={profileData.name} onChange={handleProfileChange} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500" />
+                  </div>
+                  <div>
+                    <label className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2 block">Blood Group *</label>
+                    <select required name="bloodGroup" value={profileData.bloodGroup} onChange={handleProfileChange} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500 appearance-none">
+                      <option value="">Select</option>
+                      <option value="A+">A+</option><option value="A-">A-</option>
+                      <option value="B+">B+</option><option value="B-">B-</option>
+                      <option value="AB+">AB+</option><option value="AB-">AB-</option>
+                      <option value="O+">O+</option><option value="O-">O-</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2 flex items-center justify-between">
+                      <span>Phone Number</span>
+                      <span className="text-[10px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded flex items-center gap-1"><Check size={10}/> Verified</span>
+                    </label>
+                    <input type="text" value={currentUser.mobile || ""} disabled className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-500 cursor-not-allowed" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Location Details */}
+              <div className="bg-white rounded-2xl p-6 md:p-8 border border-gray-100 shadow-sm">
+                <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-3">
+                  <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                    <MapPin size={18} className="text-red-500" /> Location Details
+                  </h3>
+                  <button type="button" onClick={handleLocationFetch} className="text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1">
+                    <MapPin size={12} /> Use Current Location
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="md:col-span-2">
+                    <label className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2 block">Full Address</label>
+                    <input type="text" name="address" value={profileData.address} onChange={handleProfileChange} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500" />
+                  </div>
+                  <div>
+                    <label className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2 block">City *</label>
+                    <input required type="text" name="city" value={profileData.city} onChange={handleProfileChange} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500" />
+                  </div>
+                  <div>
+                    <label className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2 block">State *</label>
+                    <input required type="text" name="state" value={profileData.state} onChange={handleProfileChange} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500" />
+                  </div>
+                  <div>
+                    <label className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2 block">Pincode</label>
+                    <input type="text" maxLength={6} name="pincode" value={profileData.pincode} onChange={handleProfileChange} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500" />
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="w-1/2">
+                      <label className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2 block">Latitude</label>
+                      <input type="text" value={profileData.latitude} disabled className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-500 text-xs cursor-not-allowed" />
+                    </div>
+                    <div className="w-1/2">
+                      <label className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2 block">Longitude</label>
+                      <input type="text" value={profileData.longitude} disabled className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-500 text-xs cursor-not-allowed" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Availability & Emergency */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white rounded-2xl p-6 md:p-8 border border-gray-100 shadow-sm">
+                  <h3 className="text-lg font-bold text-gray-900 mb-6 border-b border-gray-100 pb-3 flex items-center gap-2">
+                    <Clock size={18} className="text-red-500" /> Availability
+                  </h3>
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-semibold text-gray-700">Available for Emergency</label>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" className="sr-only peer" checked={profileData.availableForEmergency} onChange={(e) => setProfileData({...profileData, availableForEmergency: e.target.checked})} />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                      </label>
+                    </div>
+                    <div>
+                      <label className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2 block">Can Travel Distance</label>
+                      <select name="canTravelDistance" value={profileData.canTravelDistance} onChange={handleProfileChange} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500 appearance-none">
+                        <option value={5}>Upto 5 km</option>
+                        <option value={10}>Upto 10 km</option>
+                        <option value={20}>Upto 20 km</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2 block">Preferred Contact Method</label>
+                      <select name="preferredContactMethod" value={profileData.preferredContactMethod} onChange={handleProfileChange} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500 appearance-none">
+                        <option value="Call">Call</option>
+                        <option value="WhatsApp">WhatsApp</option>
+                        <option value="SMS">SMS</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl p-6 md:p-8 border border-gray-100 shadow-sm">
+                  <h3 className="text-lg font-bold text-gray-900 mb-6 border-b border-gray-100 pb-3 flex items-center gap-2">
+                    <AlertCircle size={18} className="text-red-500" /> Emergency Contact
+                  </h3>
+                  <div className="space-y-5">
+                    <div>
+                      <label className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2 block">Contact Name</label>
+                      <input type="text" name="emergencyContactName" value={profileData.emergencyContactName} onChange={handleProfileChange} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500" />
+                    </div>
+                    <div>
+                      <label className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2 block">Contact Number</label>
+                      <input type="text" maxLength={10} name="emergencyContactNumber" value={profileData.emergencyContactNumber} onChange={handleProfileChange} className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:border-red-500" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </form>
+
+            {/* Health Summary Read-Only Card */}
+            <div className="bg-[#FFFDFB] rounded-2xl p-6 md:p-8 border-2 border-red-50 shadow-sm mt-8">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                    <Activity size={18} className="text-red-500" /> Health & Medical Summary
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-1">Manage physical vitals, medical conditions, and eligibility</p>
+                </div>
+                <button type="button" onClick={() => handleTabChange("Health Details")} className="px-5 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl transition-colors whitespace-nowrap">
+                  Update Health Details
+                </button>
+              </div>
+
+              {!healthSummary || Object.keys(healthSummary).length === 0 ? (
+                <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-amber-800 text-sm flex items-start gap-3">
+                  <AlertCircle size={20} className="shrink-0 mt-0.5" />
+                  <p>Your health profile is incomplete. Updating your health details helps organizers match you with critical requests safely and quickly.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide mb-1">Blood Group</p>
+                    <p className="text-xl font-black text-red-600">{currentUser.bloodGroup || '-'}</p>
+                  </div>
+                  <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide mb-1">BMI</p>
+                    <p className="text-xl font-bold text-gray-900">{healthSummary.bmi || '-'}</p>
+                  </div>
+                  <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide mb-1">Weight</p>
+                    <p className="text-xl font-bold text-gray-900">{healthSummary.weight || '-'} <span className="text-xs font-medium text-gray-500">kg</span></p>
+                  </div>
+                  <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wide mb-1">Hemoglobin</p>
+                    <p className="text-xl font-bold text-gray-900">{healthSummary.hemoglobinLevel || '-'} <span className="text-xs font-medium text-gray-500">g/dL</span></p>
+                  </div>
+                </div>
+              )}
+            </div>
+
           </div>
         );
       case "My Donations":
         return (
           <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
             <h2 className="text-2xl font-bold text-gray-900 mb-6 border-b border-gray-100 pb-4">My Donations</h2>
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-4 border border-red-100">
-                <Droplet size={32} className="text-red-500" />
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">No Donations Yet</h3>
-              <p className="text-gray-500 text-sm max-w-md">Your donation history will appear here once you participate in a camp or emergency request.</p>
+            <div className="space-y-4">
+              {myDonations.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-4 border border-red-100">
+                    <Droplet size={32} className="text-red-500" />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">No Donations Yet</h3>
+                  <p className="text-gray-500 text-sm max-w-md">Your donation history will appear here once you participate in an emergency request.</p>
+                </div>
+              ) : (
+                myDonations.map((req, i) => (
+                  <div key={i} className="bg-white border border-gray-200 rounded-xl p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:shadow-md transition-shadow">
+                    <div className="flex gap-4 items-center">
+                      <div className="w-14 h-14 rounded-xl bg-red-50 flex items-center justify-center border border-red-100 shrink-0">
+                        <span className="text-red-600 font-black text-xl">{req.bloodGroup}</span>
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-gray-900 mb-1">{req.patientName}</div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          Units: {req.units} | Status: <span className="uppercase font-semibold text-red-600">{req.status}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {req.status === "accepted" ? (
+                      <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <input
+                          type="text"
+                          maxLength={4}
+                          placeholder="4-digit OTP"
+                          className="w-28 px-3 py-2 border border-gray-300 rounded-lg text-sm text-center tracking-widest focus:outline-none focus:border-red-500"
+                          value={otpInputs[req.requestId] || ""}
+                          onChange={(e) => setOtpInputs({ ...otpInputs, [req.requestId]: e.target.value })}
+                        />
+                        <button
+                          onClick={() => handleVerifyOtp(req.requestId)}
+                          className="px-4 py-2 bg-[#E74C3C] hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-all"
+                        >
+                          Verify OTP
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="text-emerald-600 font-bold flex items-center gap-2">
+                        <Check size={18} /> Completed
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        );
+      case "My Requests":
+        return (
+          <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6 border-b border-gray-100 pb-4">My Requests</h2>
+            <div className="space-y-4">
+              {myRequests.length === 0 ? (
+                <p className="text-gray-500 text-center py-10">You haven't made any blood requests yet.</p>
+              ) : (
+                myRequests.map((req, i) => (
+                  <div key={i} className="bg-white border border-gray-200 rounded-xl p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:shadow-md transition-shadow">
+                    <div className="flex gap-4 items-center">
+                      <div className="w-14 h-14 rounded-xl bg-red-50 flex items-center justify-center border border-red-100 shrink-0">
+                        <span className="text-red-600 font-black text-xl">{req.bloodGroup}</span>
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-gray-900 mb-1">{req.patientName}</div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          Units: {req.units} | Status: <span className="uppercase font-semibold text-red-600">{req.status}</span>
+                        </div>
+                        {req.status === "accepted" && req.otp && (
+                          <div className="mt-2 text-sm font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg inline-block border border-emerald-100">
+                            Verification OTP: <span className="tracking-widest text-lg ml-1">{req.otp}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <button onClick={() => navigate(`/request-status/${req.requestId}`)} className="w-full sm:w-auto px-6 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl text-sm font-medium transition-all shadow-sm shrink-0">
+                      View Status
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         );
       case "My Certificates":
+        const completedDonations = myDonations.filter(req => req.status === "completed");
         return (
           <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
             <h2 className="text-2xl font-bold text-gray-900 mb-6 border-b border-gray-100 pb-4">My Certificates</h2>
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-4 border border-red-100">
-                <FileText size={32} className="text-red-500" />
+            {completedDonations.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-4 border border-red-100">
+                  <FileText size={32} className="text-red-500" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">No Certificates Yet</h3>
+                <p className="text-gray-500 text-sm max-w-md">Your certificates will appear here once your donation is verified.</p>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">No Certificates Yet</h3>
-              <p className="text-gray-500 text-sm max-w-md">Your certificates will appear here once your donation is verified.</p>
-            </div>
+            ) : (
+              <div className="flex flex-col gap-12">
+                {completedDonations.map((req, i) => (
+                  <div key={i} className="mb-4">
+                    {/* The Certificate Card */}
+                    <div id={`certificate-${req.requestId}`} className="relative bg-[#FFFAF5] border-[8px] border-double border-red-200 rounded-xl p-8 md:p-12 overflow-hidden shadow-sm mx-auto max-w-4xl" style={{ backgroundImage: "url('https://www.transparenttextures.com/patterns/cubes.png')" }}>
+                      <div className="absolute top-0 right-0 p-8 opacity-5">
+                        <Award size={180} className="text-red-900" />
+                      </div>
+                      <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-400 via-red-600 to-red-400"></div>
+                      <div className="absolute bottom-0 left-0 w-full h-2 bg-gradient-to-r from-red-400 via-red-600 to-red-400"></div>
+
+                      <div className="relative z-10 text-center flex flex-col items-center">
+                        <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-6 shadow-inner border border-red-200">
+                          <Droplet size={40} className="text-red-600 drop-shadow-md" />
+                        </div>
+                        
+                        <h3 className="text-3xl md:text-4xl font-black text-red-800 tracking-wider mb-2 font-serif uppercase" style={{ textShadow: "1px 1px 2px rgba(0,0,0,0.1)" }}>Certificate of Appreciation</h3>
+                        <p className="text-xs md:text-sm font-bold text-red-500 uppercase tracking-[0.3em] mb-10">For Outstanding Contribution</p>
+
+                        <p className="text-gray-600 italic text-lg mb-4 font-serif">This is proudly presented to</p>
+                        <h4 className="text-4xl md:text-5xl font-bold text-gray-900 mb-8 font-serif pb-4 border-b-2 border-red-200 inline-block px-10">{currentUser.name}</h4>
+                        
+                        <p className="text-gray-700 max-w-2xl leading-relaxed text-base md:text-lg mb-10">
+                          For selflessly donating <span className="font-bold text-red-600 text-xl mx-1">{req.bloodGroup}</span> blood to help save <span className="font-bold text-gray-900">{req.patientName}'s</span> life at <span className="font-bold text-gray-900">{req.hospital}</span>. Your generous act of humanity is deeply appreciated and will never be forgotten.
+                        </p>
+
+                        <div className="w-full flex flex-col md:flex-row justify-between items-center md:items-end mt-4 px-4 md:px-8 gap-6 md:gap-0">
+                          <div className="text-center md:text-left order-2 md:order-1">
+                            <p className="text-xs text-gray-500 uppercase font-bold tracking-widest mb-1">Verification ID</p>
+                            <p className="text-sm font-bold text-gray-900 font-mono">{req.requestId}</p>
+                          </div>
+                          
+                          <div className="text-center order-1 md:order-2">
+                             <div className="w-24 h-24 md:w-32 md:h-32 bg-red-50 rounded-full border border-red-100 flex items-center justify-center relative shadow-sm">
+                                <Award size={48} className="text-red-500 absolute md:w-[64px] md:h-[64px]" />
+                                <div className="absolute inset-0 rounded-full border-2 border-dashed border-red-300 animate-[spin_20s_linear_infinite]"></div>
+                             </div>
+                          </div>
+
+                          <div className="text-center md:text-right order-3">
+                            <p className="text-xs text-gray-500 uppercase font-bold tracking-widest mb-1">Date</p>
+                            <p className="text-sm font-bold text-gray-900">{new Date(req.completedAt).toLocaleDateString("en-US", { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-8 flex justify-center">
+                      <button onClick={() => downloadCertificate(req.requestId)} className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-8 py-3.5 rounded-full font-bold shadow-lg shadow-red-200 transition-all transform hover:-translate-y-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        Download Certificate
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         );
       case "Emergency":
@@ -220,22 +695,31 @@ const Dashboard = () => {
                 <p className="text-gray-500 text-center py-10">No active emergency requests right now.</p>
               ) : (
                 activeRequests.map((req, i) => (
-                  <div key={i} className="bg-white border border-gray-200 rounded-xl p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:shadow-md transition-shadow">
-                    <div className="flex gap-4 items-center">
-                      <div className="w-14 h-14 rounded-xl bg-red-50 flex items-center justify-center border border-red-100">
-                        <span className="text-red-600 font-black text-xl">{req.bloodGroup}</span>
-                      </div>
-                      <div>
-                        <div className="text-sm font-bold text-gray-900 mb-1">{req.patientName} Needs Blood</div>
-                        <div className="text-xs text-gray-500 flex items-center gap-2">
-                          <MapPin size={12} className="text-gray-400" /> {req.hospital}, {req.city}
+                  <div key={i} className="bg-white border border-gray-200 rounded-xl p-5 flex flex-col gap-4 hover:shadow-md transition-shadow">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                      <div className="flex gap-4 items-center">
+                        <div className="w-14 h-14 rounded-xl bg-red-50 flex items-center justify-center border border-red-100 shrink-0">
+                          <span className="text-red-600 font-black text-xl">{req.bloodGroup}</span>
                         </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          Units: {req.units} | Needed by: {req.neededBy}
+                        <div>
+                          <div className="text-sm font-bold text-gray-900 mb-1">{req.patientName} Needs Blood</div>
+                          <div className="text-xs text-gray-500 flex items-center gap-2">
+                            <MapPin size={12} className="text-gray-400" /> {req.hospital}, {req.city}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            Units: {req.units} | Needed by: {req.neededBy}
+                          </div>
                         </div>
                       </div>
+                      <button onClick={() => handleAcceptRequest(req.requestId)} className="w-full sm:w-auto px-6 py-2.5 bg-[#E74C3C] hover:bg-red-700 rounded-xl text-white text-sm font-medium transition-all shadow-sm shrink-0">Accept Request</button>
                     </div>
-                    <button className="w-full sm:w-auto px-6 py-2.5 bg-[#E74C3C] hover:bg-red-700 rounded-xl text-white text-sm font-medium transition-all shadow-sm">Accept Request</button>
+                    {req.recipient && (
+                      <div className="pt-3 border-t border-gray-100 flex flex-col gap-2">
+                        <div className="text-sm text-gray-800">
+                          <span className="font-bold">Requested by:</span> {req.recipient.name} ({req.recipient.mobile})
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))
               )}
