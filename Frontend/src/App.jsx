@@ -10,6 +10,7 @@ import {
   Routes,
   Route,
   useLocation,
+  Navigate,
 } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 
@@ -77,7 +78,7 @@ const Layout = () => {
       {!shouldHideNavbar && <Navbar />}
       <ScrollToTop />
       <Routes>
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={import.meta.env.MODE === 'admin' ? <Navigate to="/admin-login" replace /> : <Home />} />
         <Route path="/about" element={<About />} />
         <Route path="/services" element={<Services />} />
 
