@@ -2327,8 +2327,19 @@ const Admin = () => {
                       <div className="text-sm text-slate-600">
                         <span className="font-semibold text-slate-800">Requested by:</span> {req.recipient?.name} ({req.recipient?.mobile})
                       </div>
+                      
+                      {req.acceptedBy && (
+                        <div className="text-sm mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                          <div className="font-semibold text-green-800 mb-1">Donor Details (Accepted)</div>
+                          <div className="text-green-700"><span className="font-semibold">Name:</span> {req.acceptedBy.name}</div>
+                          <div className="text-green-700"><span className="font-semibold">Contact:</span> {req.acceptedBy.mobile}</div>
+                          {req.acceptedAt && <div className="text-green-700"><span className="font-semibold">Accepted On:</span> {new Date(req.acceptedAt).toLocaleString()}</div>}
+                          {req.otp && <div className="text-green-700 mt-1 font-mono"><span className="font-semibold">OTP:</span> <strong>{req.otp}</strong></div>}
+                        </div>
+                      )}
+
                       {req.additionalInfo && (
-                        <div className="text-sm bg-slate-50 p-3 rounded-lg border border-slate-100 text-slate-600 italic">
+                        <div className="text-sm bg-slate-50 p-3 rounded-lg border border-slate-100 text-slate-600 italic mt-2">
                           "{req.additionalInfo}"
                         </div>
                       )}

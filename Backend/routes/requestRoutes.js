@@ -49,6 +49,10 @@ router.post("/create", verifyToken, async (req, res) => {
 
     await newRequest.save();
 
+    // Update the user's role to 'recipient'
+    const User = (await import("../models/User.js")).default;
+    await User.findByIdAndUpdate(req.user.id, { role: "recipient" });
+
     res.status(201).json({ success: true, message: "Request created successfully", data: newRequest });
   } catch (error) {
     console.error("Create request error:", error);

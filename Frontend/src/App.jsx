@@ -43,6 +43,12 @@ import Gallery from "./pages/organizer/Gallery";
 import Reports from "./pages/organizer/Reports";
 import ChangePassword from "./pages/organizer/ChangePassword";
 import CompleteCamp from "./pages/admin/CompleteCamp";
+import OrganizerRoute from "./components/OrganizerRoute";
+
+import BloodBankRegister from "./pages/BloodBankRegister";
+import BloodBankLogin from "./pages/BloodBankLogin";
+import BloodBankSetPassword from "./pages/BloodBankSetPassword";
+import BloodBankDashboard from "./pages/BloodBankDashboard";
 
 /* ✅ Footer wrapper */
 const Layout = () => {
@@ -62,6 +68,9 @@ const Layout = () => {
     "/dashboard",
     "/blood-request",
     "/request-status",
+    "/blood-bank/dashboard",
+    "/blood-bank/blood-request",
+    "/blood-bank/profile",
   ];
 
   const shouldHideFooter = hideFooterRoutes.some((path) =>
@@ -96,9 +105,9 @@ const Layout = () => {
         <Route path="/request-status/:requestId" element={<RequestStatus />} />
 
         {/* Organizer Routes */}
-        <Route path="/organizer/dashboard/:tab?" element={<OrganizerDashboard />} />
-        <Route path="/organizer/camp/:campId" element={<CampDetail />} />
-        <Route path="/organizer/change-password" element={<ChangePassword />} />
+        <Route path="/organizer/dashboard/:tab?" element={<OrganizerRoute><OrganizerDashboard /></OrganizerRoute>} />
+        <Route path="/organizer/camp/:campId" element={<OrganizerRoute><CampDetail /></OrganizerRoute>} />
+        <Route path="/organizer/change-password" element={<OrganizerRoute><ChangePassword /></OrganizerRoute>} />
 
         {/* Admin Complete Camp */}
         <Route path="/admin/camps/:campId/complete" element={<CompleteCamp />} />
@@ -106,17 +115,24 @@ const Layout = () => {
         <Route path="/organizer-enquiry" element={<OrganizerEnquiry />} />
         <Route path="/organizer-login" element={<OrganizerLogin />} />
         
-        <Route path="/organizer-dashboard/registrations" element={<Registrations />} />
-        <Route path="/organizer-dashboard/gallery" element={<Gallery />} />
-        <Route path="/organizer-dashboard/reports" element={<Reports />} />
+        <Route path="/organizer-dashboard/registrations" element={<OrganizerRoute><Registrations /></OrganizerRoute>} />
+        <Route path="/organizer-dashboard/gallery" element={<OrganizerRoute><Gallery /></OrganizerRoute>} />
+        <Route path="/organizer-dashboard/reports" element={<OrganizerRoute><Reports /></OrganizerRoute>} />
         {/* /organizer-dashboard is handled by /organizer/dashboard above, but keeping for backward compatibility */}
-        <Route path="/organizer-dashboard/:tab?" element={<OrganizerDashboard />} />
+        <Route path="/organizer-dashboard/:tab?" element={<OrganizerRoute><OrganizerDashboard /></OrganizerRoute>} />
 
         <Route path="/admin-organizers" element={<AdminOrganizers />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/admin-login" element={<AdminLogin />} />
         <Route path="/admin-enquiries" element={<AdminEnquiries />} />
         <Route path="/admin/camp/:campName" element={<CampDonorList />} />
+
+        {/* Blood Bank Routes */}
+        <Route path="/blood-bank/register" element={<BloodBankRegister />} />
+        <Route path="/blood-bank/login" element={<BloodBankLogin />} />
+        <Route path="/blood-bank/set-password" element={<BloodBankSetPassword />} />
+        <Route path="/blood-bank/:tab" element={<BloodBankDashboard />} />
+        <Route path="/blood-bank/dashboard" element={<BloodBankDashboard />} />
       </Routes>
 
       {/* ✅ Footer only for PUBLIC pages */}
