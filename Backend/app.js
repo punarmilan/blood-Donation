@@ -45,6 +45,7 @@ app.use(
         "http://localhost:3000",
         "https://raktdaan.online",
         "https://www.raktdaan.online",
+        "https://admin.raktdaan.online",
       ];
 
       // allow requests with no origin (like Postman)

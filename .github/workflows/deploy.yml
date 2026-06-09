@@ -46,6 +46,18 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Build & push Admin image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./admin
+          file: ./admin/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/raktdaan-admin:latest
+          build-args: |
+            VITE_APP_API_URL=https://admin.raktdaan.online/api
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       - name: Deploy on VPS via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -62,9 +74,10 @@ jobs:
             # Pull latest images
             docker pull ${{ secrets.DOCKER_USERNAME }}/raktdaan-backend:latest
             docker pull ${{ secrets.DOCKER_USERNAME }}/raktdaan-frontend:latest
+            docker pull ${{ secrets.DOCKER_USERNAME }}/raktdaan-admin:latest
 
-            # Update docker-compose to use pulled images
-            docker compose up -d --no-build backend frontend
+            # Restart all services
+            docker compose up -d --no-build backend frontend admin nginx
 
             # Reload nginx
             docker compose exec nginx nginx -s reload

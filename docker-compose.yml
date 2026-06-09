@@ -41,7 +41,7 @@ services:
       context: ./admin
       dockerfile: Dockerfile
       args:
-        - VITE_APP_API_URL=https://raktdaan.online/api
+        - VITE_APP_API_URL=https://admin.raktdaan.online/api
     container_name: raktdaan-admin
     restart: unless-stopped
     networks:
