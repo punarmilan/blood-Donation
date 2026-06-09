@@ -10,7 +10,6 @@ import {
   Routes,
   Route,
   useLocation,
-  Navigate,
 } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 
@@ -22,17 +21,12 @@ import OtpVerify from "./pages/OtpVerify";
 import DonorDashboard from "./pages/DonorDashboard";
 import BloodRequestForm from "./pages/BloodRequestForm";
 import RequestStatus from "./pages/RequestStatus";
-import Admin from "./pages/Admin";
-import AdminLogin from "./pages/AdminLogin";
-import CampDonorList from "./pages/CampDonarList";
 import Services from "./pages/Services";
 import Navbar from "./components/Navbar";
-import AdminEnquiries from "./pages/AdminEnquiries";
 import OrganizerEnquiry from "./pages/OrganizerEnquiry";
 import OrganizerLogin from "./pages/OrganizerLogin";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
-import AdminOrganizers from "./pages/AdminOrganizers";
 import CampRegistration from "./pages/public/CampRegistration";
 import BloodBanks from "./pages/BloodBanks";
 
@@ -42,7 +36,6 @@ import Registrations from "./pages/organizer/Registrations";
 import Gallery from "./pages/organizer/Gallery";
 import Reports from "./pages/organizer/Reports";
 import ChangePassword from "./pages/organizer/ChangePassword";
-import CompleteCamp from "./pages/admin/CompleteCamp";
 import OrganizerRoute from "./components/OrganizerRoute";
 
 import BloodBankRegister from "./pages/BloodBankRegister";
@@ -56,10 +49,6 @@ const Layout = () => {
 
   // ❌ routes where footer should NOT appear
   const hideFooterRoutes = [
-    "/admin",
-    "/admin-login",
-    "/admin-enquiries",
-    "/admin-organizers",
     "/organizer-dashboard",
     "/organizer/dashboard",
     "/organizer/camp",
@@ -87,7 +76,7 @@ const Layout = () => {
       {!shouldHideNavbar && <Navbar />}
       <ScrollToTop />
       <Routes>
-        <Route path="/" element={import.meta.env.MODE === 'admin' ? <Navigate to="/admin-login" replace /> : <Home />} />
+        <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
         <Route path="/services" element={<Services />} />
 
@@ -109,9 +98,6 @@ const Layout = () => {
         <Route path="/organizer/camp/:campId" element={<OrganizerRoute><CampDetail /></OrganizerRoute>} />
         <Route path="/organizer/change-password" element={<OrganizerRoute><ChangePassword /></OrganizerRoute>} />
 
-        {/* Admin Complete Camp */}
-        <Route path="/admin/camps/:campId/complete" element={<CompleteCamp />} />
-
         <Route path="/organizer-enquiry" element={<OrganizerEnquiry />} />
         <Route path="/organizer-login" element={<OrganizerLogin />} />
         
@@ -120,12 +106,6 @@ const Layout = () => {
         <Route path="/organizer-dashboard/reports" element={<OrganizerRoute><Reports /></OrganizerRoute>} />
         {/* /organizer-dashboard is handled by /organizer/dashboard above, but keeping for backward compatibility */}
         <Route path="/organizer-dashboard/:tab?" element={<OrganizerRoute><OrganizerDashboard /></OrganizerRoute>} />
-
-        <Route path="/admin-organizers" element={<AdminOrganizers />} />
-        <Route path="/admin" element={<Admin />} />
-        <Route path="/admin-login" element={<AdminLogin />} />
-        <Route path="/admin-enquiries" element={<AdminEnquiries />} />
-        <Route path="/admin/camp/:campName" element={<CampDonorList />} />
 
         {/* Blood Bank Routes */}
         <Route path="/blood-bank/register" element={<BloodBankRegister />} />
