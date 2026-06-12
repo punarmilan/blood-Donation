@@ -197,39 +197,46 @@
       return () => clearInterval(timer);
     }, [displayStories.length]);
 
-    /* Fetch success stories */
-    useEffect(() => {
-      const fetchStories = async () => {
-        try {
-          const data = await getStories(true);
-          if (data && data.success && data.data.length > 0) {
-            setSuccessStories(data.data);
-          }
-        } catch (err) {
-          console.error("Failed to load success stories", err);
-        } finally {
-          setLoadingStories(false);
+    const fetchStories = async () => {
+      try {
+        const data = await getStories(true);
+        if (data && data.success) {
+          setSuccessStories(data.data);
         }
-      };
-      fetchStories();
-    }, []);
+      } catch (err) {
+        console.error("Failed to load success stories", err);
+      } finally {
+        setLoadingStories(false);
+      }
+    };
 
-    /* Fetch latest news */
-    useEffect(() => {
-      const fetchNews = async () => {
-        try {
-          const data = await getPublicNews();
-          if (data && data.success) {
-            setNews(data.data);
-          }
-        } catch (err) {
-          console.error("Failed to load news", err);
-          setNewsError("Failed to load latest news.");
-        } finally {
-          setLoadingNews(false);
+    const fetchNews = async () => {
+      try {
+        const data = await getPublicNews();
+        if (data && data.success) {
+          setNews(data.data);
         }
-      };
+      } catch (err) {
+        console.error("Failed to load news", err);
+        setNewsError("Failed to load latest news.");
+      } finally {
+        setLoadingNews(false);
+      }
+    };
+
+    /* Fetch success stories and news on mount and on location change */
+    useEffect(() => {
+      fetchStories();
       fetchNews();
+
+      const handleLocationChange = () => {
+        fetchStories();
+        fetchNews();
+      };
+      window.addEventListener("locationChanged", handleLocationChange);
+      return () => {
+        window.removeEventListener("locationChanged", handleLocationChange);
+      };
     }, []);
 
     /* GSAP ScrollTrigger animations */
@@ -1023,20 +1030,306 @@
         }
 
         @media (max-width: 768px) {
-          .hero-banner-container {
-            flex-direction: column;
-            text-align: center;
-            padding: 32px 24px;
-          }
-          .hero-banner-graphic {
-            width: 120px;
-            height: 120px;
-          }
-          .hero-banner-buttons {
+          .home-cta-section {
+            padding: 24px 16px 35px !important;
+            display: flex;
             justify-content: center;
           }
+          .hero-banner-container {
+            flex-direction: column !important;
+            text-align: center !important;
+            padding: 0 !important;
+            width: 100% !important;
+            max-width: 450px !important;
+            margin: 0 auto !important;
+            border-radius: 14px !important;
+            overflow: hidden !important;
+            background: #0f0a0a !important;
+            border: 1px solid rgba(225, 29, 72, 0.25) !important;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5), 0 0 15px rgba(225, 29, 72, 0.15) !important;
+          }
+          .hero-banner-graphic {
+            width: 100% !important;
+            height: 200px !important;
+            margin-bottom: 12px !important;
+            background: linear-gradient(rgba(15, 10, 10, 0.2), rgba(15, 10, 10, 0.95)), url("${homeFooterBg}") center/cover no-repeat !important;
+            position: relative !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+          }
+          .hero-banner-graphic::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, rgba(0,0,0,0) 50%, #0f0a0a 100%) !important;
+            pointer-events: none;
+          }
+          .banner-glowing-svg {
+            max-height: 90% !important;
+            width: auto !important;
+          }
+          .banner-plus-rect {
+            fill: #e11d48 !important;
+          }
+          .hero-banner-content {
+            margin-left: 0 !important;
+            text-align: center !important;
+            width: 100% !important;
+            padding: 0 24px 28px !important;
+            box-sizing: border-box !important;
+            z-index: 2 !important;
+          }
           .hero-banner-title {
-            font-size: 1.6rem;
+            color: #ffffff !important;
+            font-size: 1.65rem !important;
+            font-weight: 900 !important;
+            margin-bottom: 8px !important;
+            letter-spacing: 0.05em !important;
+            text-transform: uppercase;
+          }
+          .hero-banner-text {
+            margin-bottom: 24px !important;
+            line-height: 1.4 !important;
+          }
+          .hero-banner-subheading {
+            display: block !important;
+            font-weight: 700 !important;
+            font-size: 1.1rem !important;
+            color: #ffffff !important;
+            margin-bottom: 6px !important;
+          }
+          .hero-banner-desc {
+            display: block !important;
+            font-weight: 400 !important;
+            font-size: 0.9rem !important;
+            color: #9ca3af !important;
+          }
+          .hero-banner-buttons {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 12px !important;
+            width: 100% !important;
+            align-items: center !important;
+            justify-content: center !important;
+          }
+          .banner-btn {
+            width: 100% !important;
+            max-width: 320px !important;
+            height: 44px !important;
+            border-radius: 22px !important;
+            padding: 0 !important;
+            font-size: 0.95rem !important;
+            box-sizing: border-box !important;
+          }
+          .banner-btn.btn-primary {
+            background: linear-gradient(135deg, #e11d48, #be123c) !important;
+          }
+          .banner-btn.btn-secondary {
+            background: #ffffff !important;
+            color: #070707 !important;
+          }
+        }
+
+        /* ── HOW IT WORKS MOBILE RESPONSIVE ── */
+        @media (max-width: 768px) {
+          .how-steps-row {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 0 !important;
+            max-width: 480px !important;
+            margin: 0 auto !important;
+            padding: 0 10px !important;
+          }
+
+          .how-step-item {
+            flex-direction: row !important;
+            align-items: center !important;
+            text-align: left !important;
+            width: 100% !important;
+            gap: 20px !important;
+          }
+
+          .step-circle-wrap {
+            margin-bottom: 0 !important;
+            flex-shrink: 0 !important;
+          }
+
+          .step-circle {
+            width: 76px !important;
+            height: 76px !important;
+            font-size: 1.8rem !important;
+          }
+
+          .step-num-badge {
+            top: -2px !important;
+            right: -2px !important;
+            width: 24px !important;
+            height: 24px !important;
+            font-size: 0.65rem !important;
+          }
+
+          .step-text-wrap {
+            flex: 1 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: center !important;
+            text-align: left !important;
+          }
+
+          .step-title {
+            text-align: left !important;
+            margin-bottom: 0.25rem !important;
+            font-size: 0.95rem !important;
+          }
+
+          .step-desc {
+            text-align: left !important;
+            margin: 0 !important;
+            max-width: 100% !important;
+            font-size: 0.75rem !important;
+          }
+
+          .step-arrow {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            margin-left: 37px !important; /* Half of circle size (76px / 2 = 38px) - adjusted for line alignment */
+            margin-top: -6px !important;
+            margin-bottom: -6px !important;
+            padding: 0 !important;
+            width: 2px !important;
+            height: auto !important;
+            transform: none !important;
+          }
+
+          .step-arrow-line {
+            width: 2px !important;
+            height: 36px !important;
+            background: repeating-linear-gradient(
+              to bottom,
+              rgba(225,29,72,0.5) 0px,
+              rgba(225,29,72,0.5) 6px,
+              transparent 6px,
+              transparent 12px
+            ) !important;
+          }
+
+          .step-arrow-head {
+            transform: rotate(90deg) !important;
+            margin-left: 0 !important;
+            margin-top: 2px !important;
+            font-size: 0.9rem !important;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .partners-section {
+            padding: 35px 14px !important;
+            overflow-x: hidden !important;
+          }
+
+          .partners-container {
+            max-width: 450px !important;
+            margin: 0 auto !important;
+            padding: 22px 18px !important;
+            border-radius: 14px !important;
+            border: 1px solid rgba(255,255,255,0.08) !important;
+            background: rgba(255,255,255,0.02) !important;
+          }
+
+          .partners-title {
+            text-align: center !important;
+            font-size: 16px !important;
+            letter-spacing: 1.5px !important;
+            margin-bottom: 20px !important;
+          }
+
+          .partners-title::after {
+            content: "" !important;
+            display: block !important;
+            width: 60px !important;
+            height: 2px !important;
+            background: #ff2d5f !important;
+            margin: 8px auto 0 !important;
+            border-radius: 20px !important;
+          }
+
+          .partners-grid {
+            display: grid !important;
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 12px !important;
+            background: none !important;
+            border: none !important;
+            padding: 0 !important;
+            border-radius: 0 !important;
+          }
+
+          .partner-card {
+            min-height: 72px !important;
+            padding: 12px 14px !important;
+            border-radius: 9px !important;
+            background: rgba(255,255,255,0.03) !important;
+            border: 1px solid rgba(255,255,255,0.08) !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 12px !important;
+            flex: none !important;
+            max-width: none !important;
+          }
+
+          .partner-card:last-child {
+            grid-column: span 2 !important;
+            justify-content: center !important;
+          }
+
+          .partner-card img,
+          .partner-card svg {
+            width: 32px !important;
+            height: 32px !important;
+            object-fit: contain !important;
+            flex-shrink: 0 !important;
+          }
+
+          .partner-card span {
+            line-height: 1.1 !important;
+          }
+
+          .partner-card .partner-logo-content {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            justify-content: flex-start !important;
+            gap: 12px !important;
+            width: 100% !important;
+          }
+
+          .partner-card:nth-child(4) .partner-logo-content {
+            flex-direction: row-reverse !important;
+            justify-content: flex-end !important;
+          }
+
+          .partner-card .apollo-title,
+          .partner-card .fortis-title,
+          .partner-card .ruby-title,
+          .partner-card .sahyadri-title {
+            font-size: 14px !important;
+          }
+
+          .partner-card .apollo-subtitle,
+          .partner-card .fortis-subtitle,
+          .partner-card .ruby-subtitle,
+          .partner-card .sahyadri-subtitle {
+            font-size: 9px !important;
+          }
+
+          .partner-card .redcross-title {
+            font-size: 13px !important;
+          }
+
+          .partner-card .redcross-subtitle {
+            font-size: 9px !important;
           }
         }
       `}</style>
@@ -1055,8 +1348,10 @@
                     <div className="step-circle">{step.icon}</div>
                     <span className="step-num-badge">{step.num}</span>
                   </div>
-                  <div className="step-title">{step.title}</div>
-                  <p className="step-desc">{step.desc}</p>
+                  <div className="step-text-wrap">
+                    <div className="step-title">{step.title}</div>
+                    <p className="step-desc">{step.desc}</p>
+                  </div>
                 </div>
                 {idx < steps.length - 1 && (
                   <div className="step-arrow">
@@ -1121,14 +1416,14 @@
       </div>
 
       {/* ── OUR PARTNERS ─────────────────────────────────────── */}
-      <div className="dis-block">
-        <div className="dis-inner">
-          <h2 className="dis-section-label">
+      <div className="dis-block partners-section">
+        <div className="dis-inner partners-container">
+          <h2 className="dis-section-label partners-title">
             OUR <span>PARTNERS</span>
           </h2>
-          <div className="partners-row">
+          <div className="partners-row partners-grid">
             {partners.map((p, idx) => (
-              <div key={idx} className="partner-logo-item">
+              <div key={idx} className="partner-logo-item partner-card">
                 {p.component}
               </div>
             ))}
@@ -1219,7 +1514,7 @@
       </div>
 
       {/* ── BECOME A HERO TODAY BANNER ────────────────────────── */}
-      <div className="dis-block" style={{ borderBottom: "none", paddingTop: "10px" }}>
+      <div className="dis-block home-cta-section" style={{ borderBottom: "none", paddingTop: "10px" }}>
         <div className="dis-inner">
           <div className="hero-banner-container">
             {/* Left glowing blood drop inside hands */}
@@ -1236,8 +1531,8 @@
                 <rect x="112" y="30" width="16" height="180" fill="rgba(225, 29, 72, 0.08)" rx="4" transform="rotate(45 120 120)" />
                 <rect x="30" y="112" width="180" height="16" fill="rgba(225, 29, 72, 0.08)" rx="4" transform="rotate(45 120 120)" />
                 <path d="M120 40C120 40 160 100 160 130C160 152 142 170 120 170C98 170 80 152 80 130C80 100 120 40 120 40Z" fill="url(#drop-gradient)" filter="drop-shadow(0 0 15px rgba(225,29,72,0.65))" />
-                <rect x="114" y="115" width="12" height="30" fill="#FFFFFF" rx="2" />
-                <rect x="105" y="124" width="30" height="12" fill="#FFFFFF" rx="2" />
+                <rect x="114" y="115" width="12" height="30" fill="#FFFFFF" rx="2" className="banner-plus-rect" />
+                <rect x="105" y="124" width="30" height="12" fill="#FFFFFF" rx="2" className="banner-plus-rect" />
                 <path d="M50 180C80 200 110 185 120 185C130 185 160 200 190 180" stroke="rgba(255,255,255,0.25)" strokeWidth="3" fill="none" strokeLinecap="round" />
               </svg>
             </div>
@@ -1245,7 +1540,10 @@
             {/* Right text & buttons */}
             <div className="hero-banner-content">
               <h2 className="hero-banner-title">BECOME A HERO TODAY</h2>
-              <p className="hero-banner-text">Every drop counts. Be the reason for someone's smile.</p>
+              <p className="hero-banner-text">
+                <span className="hero-banner-subheading">Every drop counts. </span>
+                <span className="hero-banner-desc">Be the reason for someone's smile.</span>
+              </p>
               <div className="hero-banner-buttons">
                 <Link to="/register" className="banner-btn btn-primary">
                   Donate Blood <span className="btn-arrow">→</span>

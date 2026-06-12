@@ -10,7 +10,17 @@ export const getNews = async (publishedOnly = false) => {
 
 // Get public news
 export const getPublicNews = async () => {
-  const res = await axios.get("/api/news/public");
+  const savedLoc = localStorage.getItem("detected_location");
+  let query = "";
+  if (savedLoc) {
+    try {
+      const { country, state, city } = JSON.parse(savedLoc);
+      query = `?country=${encodeURIComponent(country || "")}&state=${encodeURIComponent(state || "")}&city=${encodeURIComponent(city || "")}`;
+    } catch (e) {
+      console.error("Error parsing location for news", e);
+    }
+  }
+  const res = await axios.get(`/api/public/news-awareness${query}`);
   return res.data;
 };
 

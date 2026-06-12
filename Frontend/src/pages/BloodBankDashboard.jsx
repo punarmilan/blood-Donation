@@ -1,29 +1,48 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { LogOut, Activity, RefreshCw, Droplet, Clock, Building2, Menu, X, Bell, CheckCircle, AlertTriangle, Package, Search, Download, User, FileText, Filter, MoreVertical, Calendar } from "lucide-react";
+import { LogOut, Activity, RefreshCw, Droplet, Clock, Building2, Menu, X, Bell, CheckCircle, AlertTriangle, Package, Search, Download, User, FileText, Filter, MoreVertical, Calendar, FlaskConical, Layers } from "lucide-react";
 import toast from "react-hot-toast";
 import bloodBankService from "../services/bloodBankService";
+import notificationService from "../services/notificationService";
 
 export default function BloodBankDashboard() {
   const navigate = useNavigate();
   const { tab } = useParams();
   const [bloodBank, setBloodBank] = useState(null);
   const [inventory, setInventory] = useState({
-    "A+": 0, "A-": 0, "B+": 0, "B-": 0, "O+": 0, "O-": 0, "AB+": 0, "AB-": 0
+    "A+": { wholeBlood: 0, redCells: 0, platelets: 0, plasma: 0 },
+    "A-": { wholeBlood: 0, redCells: 0, platelets: 0, plasma: 0 },
+    "B+": { wholeBlood: 0, redCells: 0, platelets: 0, plasma: 0 },
+    "B-": { wholeBlood: 0, redCells: 0, platelets: 0, plasma: 0 },
+    "O+": { wholeBlood: 0, redCells: 0, platelets: 0, plasma: 0 },
+    "O-": { wholeBlood: 0, redCells: 0, platelets: 0, plasma: 0 },
+    "AB+": { wholeBlood: 0, redCells: 0, platelets: 0, plasma: 0 },
+    "AB-": { wholeBlood: 0, redCells: 0, platelets: 0, plasma: 0 }
   });
   const [requests, setRequests] = useState([]);
+  const [dbNotifications, setDbNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [otpInputs, setOtpInputs] = useState({});
 
   // Layout State
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [currentView, setCurrentView] = useState("inventory");
+
+  // Camp Assignment States
+  const [campEnquiries, setCampEnquiries] = useState([]);
+  const [loadingCamps, setLoadingCamps] = useState(false);
+  const [confirmResources, setConfirmResources] = useState({});
+  const [bbNotes, setBbNotes] = useState({});
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
   useEffect(() => {
     if (tab === "blood-request" || tab === "blood-requests" || tab === "requests") {
       setCurrentView("requests");
     } else if (tab === "profile") {
       setCurrentView("profile");
+    } else if (tab === "camp-assignments" || tab === "camps") {
+      setCurrentView("camp-assignments");
     } else {
       setCurrentView("inventory");
     }
@@ -57,6 +76,16 @@ export default function BloodBankDashboard() {
       if (reqData.success) {
         setRequests(reqData.data);
       }
+
+      // Fetch db notifications
+      try {
+        const notifData = await notificationService.getNotifications();
+        if (Array.isArray(notifData)) {
+          setDbNotifications(notifData);
+        }
+      } catch (err) {
+        console.error("Failed to fetch notifications", err);
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || "Failed to fetch profile");
       if (err.response?.status === 401 || err.response?.status === 403) {
@@ -67,11 +96,14 @@ export default function BloodBankDashboard() {
     }
   };
 
-  const handleInventoryChange = (group, val) => {
+  const handleInventoryChange = (group, component, val) => {
     const num = parseInt(val, 10);
     setInventory(prev => ({
       ...prev,
-      [group]: isNaN(num) ? "" : num
+      [group]: {
+        ...(prev[group] && typeof prev[group] === 'object' ? prev[group] : { wholeBlood: prev[group] || 0, redCells: 0, platelets: 0, plasma: 0 }),
+        [component]: isNaN(num) ? "" : num
+      }
     }));
   };
 
@@ -80,7 +112,14 @@ export default function BloodBankDashboard() {
 
     const cleanInventory = {};
     for (const key in inventory) {
-      cleanInventory[key] = inventory[key] === "" || isNaN(inventory[key]) ? 0 : parseInt(inventory[key], 10);
+      const item = inventory[key];
+      const isObj = item && typeof item === 'object';
+      cleanInventory[key] = {
+        wholeBlood: (isObj ? item.wholeBlood : item) === "" || isNaN(isObj ? item.wholeBlood : item) ? 0 : parseInt(isObj ? item.wholeBlood : item, 10),
+        redCells: isObj && item.redCells !== "" && !isNaN(item.redCells) ? parseInt(item.redCells, 10) : 0,
+        platelets: isObj && item.platelets !== "" && !isNaN(item.platelets) ? parseInt(item.platelets, 10) : 0,
+        plasma: isObj && item.plasma !== "" && !isNaN(item.plasma) ? parseInt(item.plasma, 10) : 0,
+      };
     }
 
     try {
@@ -89,6 +128,16 @@ export default function BloodBankDashboard() {
         toast.success("Inventory updated successfully!");
         setInventory(data.data);
         setBloodBank(prev => ({ ...prev, lastInventoryUpdated: data.lastUpdated }));
+        
+        // Refresh notifications
+        try {
+          const notifData = await notificationService.getNotifications();
+          if (Array.isArray(notifData)) {
+            setDbNotifications(notifData);
+          }
+        } catch (err) {
+          console.error("Failed to refresh notifications", err);
+        }
       } else {
         toast.error(data.message || "Failed to update inventory");
       }
@@ -113,6 +162,50 @@ export default function BloodBankDashboard() {
     }
   };
 
+  const handleVerifyOtp = async (requestId) => {
+    const otp = otpInputs[requestId];
+    if (!otp || otp.length !== 4) {
+      toast.error("Please enter a valid 4-digit OTP.");
+      return;
+    }
+    try {
+      const res = await bloodBankService.verifyOtp(requestId, otp);
+      if (res.success) {
+        toast.success("OTP Verified Successfully! Donation Completed.");
+        setRequests(requests.map(r => r.requestId === requestId ? { ...r, status: "completed" } : r));
+        setOtpInputs(prev => {
+          const updated = { ...prev };
+          delete updated[requestId];
+          return updated;
+        });
+      } else {
+        toast.error(res.message || "Failed to verify OTP.");
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Invalid OTP or error occurred.");
+    }
+  };
+
+  const fetchCampEnquiries = async () => {
+    setLoadingCamps(true);
+    try {
+      const res = await bloodBankService.getCampEnquiries();
+      if (res.success) {
+        setCampEnquiries(res.data);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to fetch camp assignments");
+    } finally {
+      setLoadingCamps(false);
+    }
+  };
+
+  useEffect(() => {
+    if (currentView === "camp-assignments") {
+      fetchCampEnquiries();
+    }
+  }, [currentView]);
+
   const handleLogout = () => {
     localStorage.removeItem("bloodBankToken");
     localStorage.removeItem("bloodBankData");
@@ -121,7 +214,12 @@ export default function BloodBankDashboard() {
   };
 
   const totalUnits = useMemo(() => {
-    return Object.values(inventory).reduce((acc, curr) => acc + (parseInt(curr) || 0), 0);
+    return Object.values(inventory).reduce((acc, curr) => {
+      if (curr && typeof curr === 'object') {
+        return acc + (parseInt(curr.wholeBlood) || 0) + (parseInt(curr.redCells) || 0) + (parseInt(curr.platelets) || 0) + (parseInt(curr.plasma) || 0);
+      }
+      return acc + (parseInt(curr) || 0);
+    }, 0);
   }, [inventory]);
 
   if (loading) {
@@ -305,14 +403,67 @@ export default function BloodBankDashboard() {
           cursor: pointer;
         }
         .notification-bell:hover { color: #000000; }
-        .notification-dot {
+        .notification-badge {
           position: absolute;
-          top: -2px;
-          right: -2px;
-          width: 8px;
-          height: 8px;
-          background-color: #dc2626; /* Red */
-          border-radius: 50%;
+          top: -6px;
+          right: -8px;
+          background-color: #dc2626;
+          color: white;
+          font-size: 0.65rem;
+          font-weight: 700;
+          min-width: 16px;
+          height: 16px;
+          border-radius: 9999px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0 4px;
+          border: 1px solid #ffffff;
+        }
+        .notification-dropdown {
+          position: absolute;
+          top: 2.5rem;
+          right: 0;
+          width: 320px;
+          background: #ffffff;
+          border: 1px solid #e4e4e7;
+          border-radius: 0.5rem;
+          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+          z-index: 50;
+          max-height: 400px;
+          overflow-y: auto;
+        }
+        .notification-header {
+          padding: 0.75rem 1rem;
+          border-bottom: 1px solid #e4e4e7;
+          font-weight: 600;
+          font-size: 0.875rem;
+          color: #18181b;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .notification-item {
+          padding: 0.75rem 1rem;
+          border-bottom: 1px solid #f4f4f5;
+          font-size: 0.75rem;
+          cursor: pointer;
+          transition: background-color 0.2s;
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+        }
+        .notification-item:hover {
+          background-color: #f4f4f5;
+        }
+        .notification-item:last-child {
+          border-bottom: none;
+        }
+        .notification-empty {
+          padding: 2rem;
+          text-align: center;
+          color: #71717a;
+          font-size: 0.875rem;
         }
         .bb-user-profile {
           display: flex;
@@ -585,6 +736,14 @@ export default function BloodBankDashboard() {
           font-size: 1rem;
           font-weight: 700;
         }
+        @keyframes redPulse {
+          0% { background-color: rgba(239, 68, 68, 0.05); }
+          50% { background-color: rgba(239, 68, 68, 0.25); }
+          100% { background-color: rgba(239, 68, 68, 0.05); }
+        }
+        .critical-stock-row {
+          animation: redPulse 2s infinite ease-in-out;
+        }
       `}</style>
 
       {/* SIDEBAR */}
@@ -600,11 +759,32 @@ export default function BloodBankDashboard() {
         <div className="menu-section">
           <div className="menu-section-title">Main Menu</div>
           <button
-            className={`menu-item ${currentView === "inventory" ? "active" : ""}`}
-            onClick={() => navigate("/blood-bank/dashboard")}
+            className="menu-item"
+            onClick={() => navigate("/bloodbank/inventory")}
           >
-            <Droplet className="w-5 h-5" />
-            <span className="menu-item-text">Inventory</span>
+            <Package className="w-5 h-5" />
+            <span className="menu-item-text">Inventory Matrix</span>
+          </button>
+          <button
+            className="menu-item"
+            onClick={() => navigate("/bloodbank/units")}
+          >
+            <Layers className="w-5 h-5" />
+            <span className="menu-item-text">Blood Units Ledger</span>
+          </button>
+          <button
+            className="menu-item"
+            onClick={() => navigate("/bloodbank/testing")}
+          >
+            <FlaskConical className="w-5 h-5" />
+            <span className="menu-item-text">Lab Screening</span>
+          </button>
+          <button
+            className="menu-item"
+            onClick={() => navigate("/bloodbank/expiry")}
+          >
+            <AlertTriangle className="w-5 h-5" />
+            <span className="menu-item-text">Expiry Alerts</span>
           </button>
           <button
             className={`menu-item ${currentView === "requests" ? "active" : ""}`}
@@ -612,6 +792,13 @@ export default function BloodBankDashboard() {
           >
             <FileText className="w-5 h-5" />
             <span className="menu-item-text">Blood Requests</span>
+          </button>
+          <button
+            className={`menu-item ${currentView === "camp-assignments" ? "active" : ""}`}
+            onClick={() => navigate("/blood-bank/camp-assignments")}
+          >
+            <Calendar className="w-5 h-5" />
+            <span className="menu-item-text">Camp Assignments</span>
           </button>
           <button
             className={`menu-item ${currentView === "profile" ? "active" : ""}`}
@@ -641,9 +828,11 @@ export default function BloodBankDashboard() {
               <span className="title">
                 {currentView === "inventory" && "Inventory"}
                 {currentView === "requests" && "Blood Requests"}
+                {currentView === "camp-assignments" && "Camp Assignments"}
                 {currentView === "profile" && "Account Profile"}
               </span>
               {currentView === "requests" && <span className="subtitle">Manage incoming blood requests from users, hospitals and organizations</span>}
+              {currentView === "camp-assignments" && <span className="subtitle">Review and confirm resource availability for assigned camps</span>}
             </div>
           </div>
 
@@ -659,9 +848,76 @@ export default function BloodBankDashboard() {
               </>
             )}
 
-            <div className="notification-bell">
+            <div className="notification-bell" onClick={() => setIsNotificationsOpen(!isNotificationsOpen)} style={{ position: "relative" }}>
               <Bell className="w-5 h-5" />
-              <div className="notification-dot"></div>
+              {(dbNotifications.filter(n => !n.isRead).length + requests.filter(req => req.status === "active" || req.status === "pending").length) > 0 && (
+                <div className="notification-badge">
+                  {dbNotifications.filter(n => !n.isRead).length + requests.filter(req => req.status === "active" || req.status === "pending").length}
+                </div>
+              )}
+              
+              {isNotificationsOpen && (
+                <div className="notification-dropdown" onClick={(e) => e.stopPropagation()}>
+                  <div className="notification-header">
+                    <span>Notifications</span>
+                    <span className="text-xs text-zinc-500 font-normal">
+                      {dbNotifications.filter(n => !n.isRead).length + requests.filter(req => req.status === "active" || req.status === "pending").length} New
+                    </span>
+                  </div>
+                  <div className="notification-list">
+                    {dbNotifications.length === 0 && requests.filter(req => req.status === "active" || req.status === "pending").length === 0 ? (
+                      <div className="notification-empty">No new notifications.</div>
+                    ) : (
+                      <>
+                        {dbNotifications.map(notif => (
+                          <div 
+                            key={notif._id}
+                            className={`notification-item ${!notif.isRead ? 'bg-red-50/50' : ''}`}
+                            onClick={async () => {
+                              try {
+                                await notificationService.markAsRead(notif._id);
+                                setDbNotifications(prev => prev.map(n => n._id === notif._id ? { ...n, isRead: true } : n));
+                              } catch (e) {
+                                console.error(e);
+                              }
+                            }}
+                          >
+                            <div className="flex justify-between items-start w-full">
+                              <span className="font-semibold text-red-600" style={{ fontSize: "12px" }}>{notif.title}</span>
+                              <span className="text-[9px] text-zinc-400">{new Date(notif.createdAt).toLocaleDateString()}</span>
+                            </div>
+                            <div className="text-zinc-600" style={{ fontSize: "11px", textAlign: "left", marginTop: "2px" }}>
+                              {notif.message}
+                            </div>
+                          </div>
+                        ))}
+                        {requests.filter(req => req.status === "active" || req.status === "pending").map((req) => (
+                          <div 
+                            key={req._id} 
+                            className="notification-item"
+                            onClick={() => {
+                              setCurrentView("requests");
+                              setIsNotificationsOpen(false);
+                            }}
+                          >
+                            <div className="flex justify-between items-start w-full">
+                              <span className="font-semibold text-zinc-800" style={{ fontSize: "12px" }}>{req.bloodGroup} Needed</span>
+                              <span className="text-[10px] text-red-600 bg-red-50 px-1.5 py-0.5 rounded font-semibold uppercase">{req.urgency || "Normal"}</span>
+                            </div>
+                            <div className="text-zinc-600" style={{ fontSize: "11px", textAlign: "left" }}>
+                              Patient: <strong>{req.patientName}</strong> ({req.units} Units — {req.bloodComponent || "Not specified"})
+                            </div>
+                            <div className="text-zinc-400 flex justify-between mt-1" style={{ fontSize: "10px", width: "100%" }}>
+                              <span className="truncate max-w-[150px]">{req.hospital}</span>
+                              <span>ID: {req.requestId}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="bb-user-profile">
               <div className="bb-user-avatar">
@@ -810,6 +1066,7 @@ export default function BloodBankDashboard() {
                               <div className="group-name">
                                 <Droplet className="drop-icon" fill="currentColor" /> {req.bloodGroup}
                               </div>
+                              <div className="text-[10px] text-zinc-500 font-semibold mt-1">{req.bloodComponent || "Not specified"}</div>
                             </td>
                             <td className="font-semibold">{req.units} Units</td>
                             <td>
@@ -833,6 +1090,20 @@ export default function BloodBankDashboard() {
                                     onClick={() => handleAcceptRequest(req.requestId)}
                                   >
                                     Accept
+                                  </button>
+                                ) : ["accepted", "reserved", "ready_for_pickup", "issued"].includes(req.status) ? (
+                                  <button
+                                    className="action-btn bg-red-600 text-white border-red-600 hover:bg-red-700 hover:text-white font-bold"
+                                    onClick={() => navigate(`/bloodbank/requests/${req.requestId}`)}
+                                  >
+                                    Fulfill Request
+                                  </button>
+                                ) : req.status === "completed" ? (
+                                  <button
+                                    className="action-btn opacity-50 cursor-not-allowed bg-zinc-100 text-zinc-600 border-zinc-200"
+                                    disabled
+                                  >
+                                    Completed
                                   </button>
                                 ) : (
                                   <button
@@ -865,6 +1136,147 @@ export default function BloodBankDashboard() {
                   </div>
                 </div>
 
+              </div>
+            </>
+          )}
+
+          {/* CAMP ASSIGNMENTS VIEW */}
+          {currentView === "camp-assignments" && (
+            <>
+              <div className="inventory-section">
+                <div className="inventory-header">
+                  <h2 className="inventory-title">Camp Assignments</h2>
+                  <button className="export-btn" onClick={fetchCampEnquiries}>
+                    <RefreshCw className="w-4 h-4" /> Refresh
+                  </button>
+                </div>
+
+                {loadingCamps ? (
+                  <p className="text-center py-8 text-zinc-500">Loading assignments...</p>
+                ) : campEnquiries.length === 0 ? (
+                  <div className="text-center py-8 text-zinc-500 border border-dashed rounded-lg p-6 bg-zinc-50">
+                    No camp assignments found.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="blood-table">
+                      <thead>
+                        <tr>
+                          <th>Organizer / Organization</th>
+                          <th>Camp Details</th>
+                          <th>Status</th>
+                          <th>Response Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {campEnquiries.map(enq => {
+                          return (
+                            <tr key={enq._id}>
+                              <td>
+                                <div className="font-bold text-red-600">{enq.organizationName || "Personal"}</div>
+                                <div className="font-semibold">{enq.organizerName}</div>
+                                <div className="text-xs text-zinc-500 mt-1">📞 {enq.phone}</div>
+                                <div className="text-xs text-zinc-500">📧 {enq.email}</div>
+                              </td>
+                              <td>
+                                <div className="font-semibold text-zinc-800">
+                                  📅 {enq.preferredDate ? new Date(enq.preferredDate).toLocaleDateString() : "TBA"}
+                                  {enq.preferredTime ? ` (${enq.preferredTime})` : ""}
+                                </div>
+                                <div className="text-xs text-zinc-500 mt-0.5">📍 {enq.area}</div>
+                                <div className="text-xs text-zinc-500 mt-0.5">👥 Expected Donors: {enq.expectedDonors || "Not Specified"}</div>
+                                {enq.message && (
+                                  <div className="text-xs text-zinc-600 mt-2 bg-zinc-50 p-2 rounded border border-zinc-100" style={{ maxWidth: '300px' }}>
+                                    <strong>Msg:</strong> {enq.message}
+                                  </div>
+                                )}
+                              </td>
+                              <td>
+                                <span className={`badge-status ${
+                                  enq.bloodBankStatus === 'accepted' ? 'text-green-600 border border-green-600 bg-green-50' :
+                                  enq.bloodBankStatus === 'rejected' ? 'text-red-600 border border-red-600 bg-red-50' :
+                                  'text-yellow-600 border border-yellow-600 bg-yellow-50'
+                                }`}>
+                                  {enq.bloodBankStatus === 'accepted' ? 'Accepted' :
+                                   enq.bloodBankStatus === 'rejected' ? 'Rejected' :
+                                   'Pending Confirmation'}
+                                </span>
+                                {enq.bloodBankNotes && (
+                                  <div className="text-xs text-zinc-500 mt-1">
+                                    Notes: {enq.bloodBankNotes}
+                                  </div>
+                                )}
+                              </td>
+                              <td>
+                                {enq.bloodBankStatus === 'pending' ? (
+                                  <div className="d-flex flex-column gap-2" style={{ maxWidth: '280px' }}>
+                                    <div className="form-check d-flex align-items-center gap-2">
+                                      <input
+                                        type="checkbox"
+                                        className="form-check-input cursor-pointer"
+                                        id={`confirm-${enq._id}`}
+                                        checked={!!confirmResources[enq._id]}
+                                        onChange={(e) => setConfirmResources({ ...confirmResources, [enq._id]: e.target.checked })}
+                                      />
+                                      <label className="form-check-label text-xs cursor-pointer fw-semibold text-zinc-700" htmlFor={`confirm-${enq._id}`}>
+                                        I confirm resource availability
+                                      </label>
+                                    </div>
+                                    <input
+                                      type="text"
+                                      className="units-input w-100"
+                                      placeholder="Add notes (e.g. requirements)"
+                                      value={bbNotes[enq._id] || ""}
+                                      onChange={(e) => setBbNotes({ ...bbNotes, [enq._id]: e.target.value })}
+                                      style={{ textAlign: 'left', padding: '0.4rem 0.6rem', fontSize: '0.8rem' }}
+                                    />
+                                    <div className="d-flex gap-2">
+                                      <button
+                                        className="action-btn bg-green-600 text-white border-green-600 hover:bg-green-700 flex-fill py-1.5"
+                                        onClick={async () => {
+                                          if (!confirmResources[enq._id]) {
+                                            toast.error("Please confirm resource availability first.");
+                                            return;
+                                          }
+                                          try {
+                                            await bloodBankService.respondToCampEnquiry(enq._id, "accepted", bbNotes[enq._id], true);
+                                            toast.success("Camp assignment accepted successfully!");
+                                            fetchCampEnquiries();
+                                          } catch (err) {
+                                            toast.error(err.response?.data?.message || "Failed to accept");
+                                          }
+                                        }}
+                                      >
+                                        Accept
+                                      </button>
+                                      <button
+                                        className="action-btn bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200 flex-fill py-1.5"
+                                        onClick={async () => {
+                                          if (!window.confirm("Reject this assignment?")) return;
+                                          try {
+                                            await bloodBankService.respondToCampEnquiry(enq._id, "rejected", bbNotes[enq._id], false);
+                                            toast.success("Camp assignment rejected.");
+                                            fetchCampEnquiries();
+                                          } catch (err) {
+                                            toast.error(err.response?.data?.message || "Failed to reject");
+                                          }
+                                        }}
+                                      >
+                                        Reject
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-zinc-500 font-semibold">Responded</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -943,36 +1355,68 @@ export default function BloodBankDashboard() {
                     <thead>
                       <tr>
                         <th>Blood Group</th>
+                        <th>Whole Blood</th>
+                        <th>Red Cells</th>
+                        <th>Platelets</th>
+                        <th>Plasma</th>
                         <th>Total Units</th>
-                        <th>Available Units</th>
-                        <th>Reserved Units</th>
-                        <th>Expiring Soon</th>
                         <th>Last Updated</th>
                         <th>Action</th>
                       </tr>
                     </thead>
                     <tbody>
                       {bloodGroups.map(bg => {
-                        const units = inventory[bg];
+                        const groupData = inventory[bg] && typeof inventory[bg] === 'object' ? inventory[bg] : { wholeBlood: inventory[bg] || 0, redCells: 0, platelets: 0, plasma: 0 };
+                        const totalGroupUnits = (parseInt(groupData.wholeBlood) || 0) + (parseInt(groupData.redCells) || 0) + (parseInt(groupData.platelets) || 0) + (parseInt(groupData.plasma) || 0);
+                        const isCritical = (parseInt(groupData.wholeBlood) || 0) < 3 || 
+                                           (parseInt(groupData.redCells) || 0) < 3 || 
+                                           (parseInt(groupData.platelets) || 0) < 3 || 
+                                           (parseInt(groupData.plasma) || 0) < 3;
                         return (
-                          <tr key={bg}>
+                          <tr key={bg} className={isCritical ? "critical-stock-row" : ""}>
                             <td>
                               <div className="group-name">
                                 <Droplet className="drop-icon" fill="currentColor" /> {bg}
+                                {isCritical && <span className="text-[10px] text-red-600 font-bold bg-red-50 border border-red-200 px-1.5 py-0.5 rounded animate-pulse ml-1">CRITICAL</span>}
                               </div>
                             </td>
-                            <td className="font-bold text-black">{units || 0}</td>
                             <td>
                               <input
                                 type="number"
                                 min="0"
-                                value={units}
-                                onChange={(e) => handleInventoryChange(bg, e.target.value)}
+                                value={groupData.wholeBlood}
+                                onChange={(e) => handleInventoryChange(bg, "wholeBlood", e.target.value)}
                                 className="units-input"
                               />
                             </td>
-                            <td className="text-zinc-500">0</td>
-                            <td className="text-yellow-600 font-bold">0</td>
+                            <td>
+                              <input
+                                type="number"
+                                min="0"
+                                value={groupData.redCells}
+                                onChange={(e) => handleInventoryChange(bg, "redCells", e.target.value)}
+                                className="units-input"
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="number"
+                                min="0"
+                                value={groupData.platelets}
+                                onChange={(e) => handleInventoryChange(bg, "platelets", e.target.value)}
+                                className="units-input"
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="number"
+                                min="0"
+                                value={groupData.plasma}
+                                onChange={(e) => handleInventoryChange(bg, "plasma", e.target.value)}
+                                className="units-input"
+                              />
+                            </td>
+                            <td className="font-bold text-red-600">{totalGroupUnits}</td>
                             <td className="text-zinc-500 text-xs">{formattedDate}</td>
                             <td>
                               <button className="action-btn" onClick={handleSaveInventory}>

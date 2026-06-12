@@ -20,6 +20,11 @@ const emptyForm = {
   thumbnailUrl: "",
   published: false,
   author: "Admin",
+  country: "India",
+  state: "Maharashtra",
+  city: "",
+  isGlobal: false,
+  priority: 0,
 };
 
 export default function NewsAdmin() {
@@ -30,6 +35,12 @@ export default function NewsAdmin() {
   const [form, setForm] = useState(emptyForm);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Filtering States
+  const [filterCountry, setFilterCountry] = useState("");
+  const [filterState, setFilterState] = useState("");
+  const [filterCity, setFilterCity] = useState("");
+  const [filterGlobalOnly, setFilterGlobalOnly] = useState("all");
 
   useEffect(() => { fetchArticles(); }, []);
 
@@ -45,7 +56,10 @@ export default function NewsAdmin() {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setForm(prev => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+    setForm(prev => ({ 
+      ...prev, 
+      [name]: type === "checkbox" ? checked : (name === "priority" ? Number(value) : value) 
+    }));
   };
 
   const handleThumbnailUpload = async (e) => {
@@ -97,6 +111,11 @@ export default function NewsAdmin() {
       thumbnailUrl: article.thumbnailUrl || "",
       published: article.published || false,
       author: article.author || "Admin",
+      country: article.country || "India",
+      state: article.state || "Maharashtra",
+      city: article.city || "",
+      isGlobal: article.isGlobal || false,
+      priority: article.priority || 0,
     });
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -122,6 +141,15 @@ export default function NewsAdmin() {
   };
 
   const formatDate = (d) => d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
+
+  const filteredArticles = articles.filter((item) => {
+    if (filterGlobalOnly === "global" && !item.isGlobal) return false;
+    if (filterGlobalOnly === "local" && item.isGlobal) return false;
+    if (filterCountry && !item.country?.toLowerCase().includes(filterCountry.toLowerCase())) return false;
+    if (filterState && !item.state?.toLowerCase().includes(filterState.toLowerCase())) return false;
+    if (filterCity && !item.city?.toLowerCase().includes(filterCity.toLowerCase())) return false;
+    return true;
+  });
 
   return (
     <div className="chart-card">
@@ -157,22 +185,51 @@ export default function NewsAdmin() {
                     {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
+
+                {/* Location Personalization */}
+                <div className="col-md-4">
+                  <label className="form-label fw-bold">Country</label>
+                  <input type="text" className="form-control" name="country" placeholder="e.g. India" value={form.country} onChange={handleChange} />
+                </div>
+                <div className="col-md-4">
+                  <label className="form-label fw-bold">State</label>
+                  <input type="text" className="form-control" name="state" placeholder="e.g. Maharashtra" value={form.state} onChange={handleChange} />
+                </div>
+                <div className="col-md-4">
+                  <label className="form-label fw-bold">City</label>
+                  <input type="text" className="form-control" name="city" placeholder="e.g. Pune" value={form.city} onChange={handleChange} />
+                </div>
+
                 {/* Author */}
-                <div className="col-md-6">
+                <div className="col-md-4">
                   <label className="form-label fw-bold">Author</label>
                   <input type="text" className="form-control" name="author" value={form.author} onChange={handleChange} placeholder="Author name..." />
                 </div>
+                <div className="col-md-4">
+                  <label className="form-label fw-bold">Priority (Targeting)</label>
+                  <input type="number" className="form-control" name="priority" value={form.priority} onChange={handleChange} />
+                </div>
                 {/* Published toggle */}
-                <div className="col-md-6 d-flex align-items-end">
+                <div className="col-md-4 d-flex align-items-center mt-4">
                   <div className="form-check form-switch">
                     <input className="form-check-input" type="checkbox" id="publishedSwitch" name="published" checked={form.published} onChange={handleChange} />
                     <label className="form-check-label fw-bold ms-2" htmlFor="publishedSwitch">
-                      {form.published ? "✅ Published" : "⏸ Draft (Unpublished)"}
+                      {form.published ? "✅ Published" : "⏸ Draft"}
                     </label>
                   </div>
                 </div>
+
+                <div className="col-md-6 mt-3">
+                  <div className="form-check form-switch">
+                    <input className="form-check-input" type="checkbox" id="isGlobalSwitch" name="isGlobal" checked={form.isGlobal} onChange={handleChange} />
+                    <label className="form-check-label fw-bold ms-2" htmlFor="isGlobalSwitch">
+                      Is Global? (Visible globally)
+                    </label>
+                  </div>
+                </div>
+
                 {/* Short Description */}
-                <div className="col-12">
+                <div className="col-12 mt-3">
                   <label className="form-label fw-bold">Short Description * <small className="text-muted fw-normal">(shown on cards)</small></label>
                   <textarea className="form-control" name="shortDescription" rows="2" value={form.shortDescription} onChange={handleChange} required placeholder="Brief summary of the article..." />
                 </div>
@@ -220,12 +277,57 @@ export default function NewsAdmin() {
       {/* ── Articles Table ── */}
       {!showForm && (
         <div className="custom-table-container">
+          {/* Location Filters */}
+          <div className="row g-2 mb-4 p-3 border rounded bg-light">
+            <div className="col-md-3">
+              <label className="form-label text-muted small fw-bold">Filter Country</label>
+              <input
+                type="text"
+                className="form-control form-control-sm"
+                placeholder="e.g. India"
+                value={filterCountry}
+                onChange={(e) => setFilterCountry(e.target.value)}
+              />
+            </div>
+            <div className="col-md-3">
+              <label className="form-label text-muted small fw-bold">Filter State</label>
+              <input
+                type="text"
+                className="form-control form-control-sm"
+                placeholder="e.g. Maharashtra"
+                value={filterState}
+                onChange={(e) => setFilterState(e.target.value)}
+              />
+            </div>
+            <div className="col-md-3">
+              <label className="form-label text-muted small fw-bold">Filter City</label>
+              <input
+                type="text"
+                className="form-control form-control-sm"
+                placeholder="e.g. Pune"
+                value={filterCity}
+                onChange={(e) => setFilterCity(e.target.value)}
+              />
+            </div>
+            <div className="col-md-3">
+              <label className="form-label text-muted small fw-bold">Personalization Scope</label>
+              <select
+                className="form-select form-select-sm"
+                value={filterGlobalOnly}
+                onChange={(e) => setFilterGlobalOnly(e.target.value)}
+              >
+                <option value="all">All Articles</option>
+                <option value="global">Global Only</option>
+                <option value="local">Personalized Only</option>
+              </select>
+            </div>
+          </div>
+
           {loading ? (
             <p className="text-center py-5 text-muted">Loading articles...</p>
-          ) : articles.length === 0 ? (
+          ) : filteredArticles.length === 0 ? (
             <div className="text-center py-5">
-              <div style={{ fontSize: "3rem" }}>📰</div>
-              <p className="text-muted mt-2">No articles yet. Add your first article!</p>
+              <p className="text-muted mt-2">No articles matching filters found.</p>
             </div>
           ) : (
             <table className="premium-table">
@@ -233,13 +335,15 @@ export default function NewsAdmin() {
                 <tr>
                   <th>Thumbnail</th>
                   <th>Title & Category</th>
+                  <th>Target Location</th>
+                  <th>Priority</th>
                   <th>Status</th>
                   <th>Date</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {articles.map(article => (
+                {filteredArticles.map(article => (
                   <tr key={article._id}>
                     <td>
                       {article.thumbnailUrl ? (
@@ -251,6 +355,18 @@ export default function NewsAdmin() {
                     <td>
                       <div className="fw-bold" style={{ fontSize: "0.88rem", maxWidth: "260px" }}>{article.title}</div>
                       <span className="badge rounded-pill mt-1" style={{ background: BADGE_COLORS[article.category] || "#e11d48", color: "#fff", fontSize: "0.65rem" }}>{article.category}</span>
+                    </td>
+                    <td>
+                      {article.isGlobal ? (
+                        <span className="badge bg-primary">Global</span>
+                      ) : (
+                        <span className="small text-muted font-monospace">
+                          📍 {article.city || "(Any City)"}, {article.state || "(Any State)"}, {article.country || "(Any Country)"}
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      <span className="badge bg-light text-dark border">{article.priority}</span>
                     </td>
                     <td>
                       {article.published

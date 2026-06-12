@@ -8,7 +8,7 @@ export default function AdminBloodBankRequests() {
   const [loading, setLoading] = useState(false);
   const [rejectModal, setRejectModal] = useState(null);
   const [rejectionReason, setRejectionReason] = useState("");
-  const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+  const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:5001";
 
   useEffect(() => {
     fetchRequests();

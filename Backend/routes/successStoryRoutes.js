@@ -45,11 +45,18 @@ router.post("/upload", upload.single("file"), (req, res) => {
 // 2. Get All Items (Optional filter by active)
 router.get("/", async (req, res) => {
   try {
-    const { active } = req.query;
+    const { active, country, state, city, isGlobal, isActive } = req.query;
     const filter = {};
-    if (active === 'true') {
+    if (active === 'true' || isActive === 'true') {
       filter.isActive = true;
+    } else if (isActive === 'false') {
+      filter.isActive = false;
     }
+    if (country) filter.country = new RegExp(country.trim(), "i");
+    if (state) filter.state = new RegExp(state.trim(), "i");
+    if (city) filter.city = new RegExp(city.trim(), "i");
+    if (isGlobal !== undefined) filter.isGlobal = isGlobal === "true";
+
     const items = await SuccessStory.find(filter).sort({ displayOrder: 1, createdAt: -1 });
     res.json({ success: true, data: items });
   } catch (error) {
@@ -60,7 +67,10 @@ router.get("/", async (req, res) => {
 // 3. Create Item
 router.post("/", async (req, res) => {
   try {
-    const { name, initials, subtitle, review, image, displayOrder, isActive } = req.body;
+    const { 
+      name, initials, subtitle, review, image, displayOrder, isActive,
+      country, state, city, isGlobal, priority
+    } = req.body;
     
     const newItem = new SuccessStory({
       name,
@@ -69,7 +79,12 @@ router.post("/", async (req, res) => {
       review,
       image,
       displayOrder: displayOrder || 0,
-      isActive: isActive !== undefined ? isActive : true,
+      isActive: isActive !== undefined ? (isActive === "true" || isActive === true) : true,
+      country: country || "",
+      state: state || "",
+      city: city || "",
+      isGlobal: isGlobal === "true" || isGlobal === true,
+      priority: parseInt(priority) || 0,
     });
 
     await newItem.save();

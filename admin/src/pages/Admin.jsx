@@ -7,6 +7,7 @@ import NewsAdmin from "../components/NewsAdmin.jsx";
 import BloodRequestBackgroundAdmin from "../components/BloodRequestBackgroundAdmin.jsx";
 import AdminBloodBanks from "../components/AdminBloodBanks.jsx";
 import AdminBloodBankRequests from "../components/AdminBloodBankRequests.jsx";
+import HomeContentAdmin from "../components/HomeContentAdmin.jsx";
 import adminService from "../services/adminService";
 import campService from "../services/campService";
 import donorService from "../services/donorService";
@@ -107,6 +108,8 @@ const Admin = () => {
   const [newEnquiryPassword, setNewEnquiryPassword] = useState("");
   const [editingEnquiry, setEditingEnquiry] = useState(null);
   const [editEnquiryForm, setEditEnquiryForm] = useState({});
+  const [approvedBloodBanks, setApprovedBloodBanks] = useState([]);
+  const [selectedBloodBankId, setSelectedBloodBankId] = useState({});
 
   // --- Organizers Page States ---
   const [editOrganizerId, setEditOrganizerId] = useState(null);
@@ -321,10 +324,30 @@ const Admin = () => {
     try {
       const data = await adminService.getEnquiries();
       setEnquiries(Array.isArray(data) ? data : []);
+      
+      const bbData = await adminService.getBloodBanks({ status: "approved" });
+      if (bbData && bbData.success) {
+        setApprovedBloodBanks(bbData.data);
+      }
     } catch (err) {
       console.error("Failed to load enquiries", err);
     } finally {
       setLoadingEnquiries(false);
+    }
+  };
+
+  const handleAssignBloodBank = async (enquiryId) => {
+    const bloodBankId = selectedBloodBankId[enquiryId];
+    if (!bloodBankId) {
+      toast.error("Please select a Blood Bank first.");
+      return;
+    }
+    try {
+      const res = await adminService.assignBloodBank(enquiryId, bloodBankId);
+      toast.success(res.message || "Blood Bank assigned successfully!");
+      setEnquiries(prev => prev.map(e => e._id === enquiryId ? res.enquiry : e));
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to assign blood bank.");
     }
   };
 
@@ -1559,62 +1582,6 @@ const Admin = () => {
               </div>
             </div>
 
-            <div className="charts-grid">
-              <div className="chart-card">
-                <div className="chart-header">
-                  <h3 className="chart-title">Donations Overview</h3>
-                  <select className="chart-select">
-                    <option>This Week</option>
-                  </select>
-                </div>
-                <div className="line-chart-container">
-                  <div className="chart-grid-line" style={{ bottom: "25%" }} />
-                  <div className="chart-grid-line" style={{ bottom: "50%" }} />
-                  <div className="chart-grid-line" style={{ bottom: "75%" }} />
-
-                  <svg viewBox="0 0 500 150" style={{ width: "100%", height: "100%", overflow: "visible" }}>
-                    <path
-                      d="M 10 120 Q 80 50 160 100 T 320 30 T 480 90"
-                      fill="none"
-                      stroke="#ff2e4b"
-                      strokeWidth="3.5"
-                      strokeLinecap="round"
-                    />
-                    <circle cx="160" cy="100" r="5" fill="#ff2e4b" filter="drop-shadow(0 0 3px #ff2e4b)" />
-                    <circle cx="320" cy="30" r="5" fill="#ff2e4b" filter="drop-shadow(0 0 3px #ff2e4b)" />
-                  </svg>
-                </div>
-                <div className="d-flex justify-content-between mt-2 px-2">
-                  <span className="chart-axis-label">May 25</span>
-                  <span className="chart-axis-label">May 26</span>
-                  <span className="chart-axis-label">May 27</span>
-                  <span className="chart-axis-label">May 28</span>
-                  <span className="chart-axis-label">May 29</span>
-                  <span className="chart-axis-label">May 30</span>
-                  <span className="chart-axis-label">May 31</span>
-                </div>
-              </div>
-
-              <div className="chart-card">
-                <div className="chart-header">
-                  <h3 className="chart-title">Blood Group Distribution</h3>
-                </div>
-                <div className="pie-chart-wrapper">
-                  {renderDonutChart()}
-                  <div className="pie-legend">
-                    {bloodGroupStats.list.map((bg) => (
-                      <div className="legend-item" key={bg.label}>
-                        <div className="legend-left">
-                          <span className="legend-color" style={{ backgroundColor: bg.color }} />
-                          <span className="legend-label">{bg.label}</span>
-                        </div>
-                        <span className="legend-value">{bg.percentage}% ({bg.count})</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
 
             <div className="dashboard-details-grid">
               <div className="table-card">
@@ -1655,6 +1622,7 @@ const Admin = () => {
                               <td>{req.patientName}</td>
                               <td>
                                 <span className="donor-table-group">{req.bloodGroup}</span>
+                                <div className="text-[10px] text-slate-500 font-medium">{req.bloodComponent || "Not specified"}</div>
                               </td>
                               <td>{req.hospital} {req.city ? `(${req.city})` : ''}</td>
                               <td>
@@ -1681,9 +1649,6 @@ const Admin = () => {
             <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
               <h2 className="text-danger fw-bold m-0">Camp Registrations</h2>
               <div className="d-flex gap-2">
-                <button className="btn btn-primary" onClick={() => setShowAddCampModal(true)}>
-                  + Add Camp
-                </button>
                 <button className="btn btn-outline-secondary" onClick={fetchCamps}>
                   Refresh
                 </button>
@@ -1743,6 +1708,7 @@ const Admin = () => {
                           <td className="fw-bold text-danger">{camp.title || camp.name || camp.campId}</td>
                           <td>
                             <div>{camp.date ? new Date(camp.date).toLocaleDateString() : "No date"}</div>
+                            {camp.time && <div className="small text-muted mt-1">🕒 {camp.time}</div>}
                             <div className="mt-1">{whenBadge(camp.date)}</div>
                           </td>
                           <td>
@@ -1928,6 +1894,9 @@ const Admin = () => {
                       <th>City</th>
                       <th>Mobile</th>
                       <th>Total Donations</th>
+                      <th>Eligibility</th>
+                      <th>Next Eligible Date</th>
+                      <th>Days Remaining</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1944,6 +1913,33 @@ const Admin = () => {
                         <td>{user.city || "-"}</td>
                         <td>{user.mobile || user.phone || "-"}</td>
                         <td>{user.totalDonations || 0}</td>
+                        <td>
+                          {user.role === "donor" ? (
+                            <span className={`badge ${
+                              user.donationEligibilityStatus === "Eligible to Donate" 
+                                ? "bg-success" 
+                                : "bg-warning text-dark"
+                            }`}>
+                              {user.donationEligibilityStatus || "Eligible"}
+                            </span>
+                          ) : (
+                            "-"
+                          )}
+                        </td>
+                        <td>
+                          {user.role === "donor" && user.nextEligibleDonationDate
+                            ? new Date(user.nextEligibleDonationDate).toLocaleDateString("en-IN", {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              })
+                            : "-"}
+                        </td>
+                        <td>
+                          {user.role === "donor" 
+                            ? (user.daysRemaining > 0 ? `${user.daysRemaining} days` : "0 days")
+                            : "-"}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -2168,103 +2164,181 @@ const Admin = () => {
                 No enquiries found.
               </div>
             ) : (
-              <div className="row g-4">
-                {filteredEnquiries.map((e) => (
-                  <div className="col-lg-6" key={e._id}>
-                    <div className={`card h-100 shadow-sm border-2 border-${e.status === "pending" ? "warning" : e.status === "approved" ? "success" : "secondary"}`}>
-                      <div className="card-header bg-transparent d-flex justify-content-between align-items-center">
-                        <h5 className="mb-0 text-danger fw-bold">{e.organizationName || e.organizationType || "Camp Enquiry"}</h5>
-                        <span className={`badge ${e.status === "pending" ? "bg-warning text-dark" : e.status === "approved" ? "bg-success" : "bg-secondary"}`}>
-                          {e.status.toUpperCase()}
-                        </span>
-                      </div>
-
-                      <div className="card-body">
-                        <div className="row">
-                          <div className="col-sm-6 mb-3">
-                            <h6 className="text-muted text-uppercase small fw-bold">Organizer Details</h6>
-                            <div className="fw-semibold">{e.organizerName}</div>
-                            <div className="small text-muted">📧 {e.email}</div>
-                            <div className="small text-muted">📞 {e.phone}</div>
+              <div className="table-responsive bg-white rounded shadow-sm border">
+                <table className="table table-hover align-middle mb-0">
+                  <thead className="table-light">
+                    <tr>
+                      <th style={{ minWidth: "200px" }}>Organizer Details</th>
+                      <th style={{ minWidth: "200px" }}>Camp Details</th>
+                      <th style={{ minWidth: "100px" }}>Submitted</th>
+                      <th style={{ minWidth: "100px" }}>Status</th>
+                      <th style={{ minWidth: "200px" }}>Assigned Blood Bank</th>
+                      <th style={{ minWidth: "280px" }}>Approve / Reject Action</th>
+                      <th style={{ minWidth: "120px" }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredEnquiries.map((e) => (
+                      <tr key={e._id}>
+                        <td>
+                          <div className="fw-bold text-danger">{e.organizationName || "N/A"}</div>
+                          <div className="fw-semibold text-dark">{e.organizerName}</div>
+                          <div className="small text-muted">📧 {e.email}</div>
+                          <div className="small text-muted">📞 {e.phone}</div>
+                          <div className="small text-secondary mt-1">Type: {e.organizationType}</div>
+                        </td>
+                        <td>
+                          <div className="small fw-semibold text-dark">
+                            📅 {e.preferredDate ? new Date(e.preferredDate).toLocaleDateString() : "TBA"}
+                            {e.preferredTime ? ` (${e.preferredTime})` : ""}
                           </div>
-                          <div className="col-sm-6 mb-3">
-                            <h6 className="text-muted text-uppercase small fw-bold">Camp Details</h6>
-                            <div className="small">📅 {e.preferredDate ? new Date(e.preferredDate).toLocaleDateString() : "TBA"} {e.preferredTime ? `(${e.preferredTime})` : ""}</div>
-                            <div className="small">📍 {e.area || "N/A"}</div>
-                            <div className="small">👥 Expected Donors: {e.expectedDonors || "N/A"}</div>
-                          </div>
-                        </div>
-
-                        {e.message && (
-                          <div className="alert alert-light border small p-2 mb-2 text-dark">
-                            <strong>Msg:</strong> {e.message}
-                          </div>
-                        )}
-                        {e.status === "rejected" && (
-                          <div className="alert alert-danger small p-2">
-                            <strong>Reason:</strong> {e.rejectionReason}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="card-footer bg-transparent">
-                        <div className="d-flex justify-content-between align-items-center mb-2">
-                          <small className="text-muted">
-                            Submitted: {new Date(e.createdAt).toLocaleDateString()}
-                          </small>
-
-                          <div className="btn-group">
+                          <div className="small text-muted">📍 {e.area || "N/A"}</div>
+                          <div className="small text-muted mt-1">👥 {e.expectedDonors || "N/A"} Donors expected</div>
+                          {e.message && (
+                            <div className="small mt-2 p-1 bg-light border rounded text-secondary" style={{ maxWidth: "250px" }}>
+                              <strong>Msg:</strong> {e.message}
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <div className="small text-muted">{new Date(e.createdAt).toLocaleDateString()}</div>
+                        </td>
+                        <td>
+                          <span
+                            className={`badge ${
+                              e.status === "pending"
+                                ? "bg-warning text-dark"
+                                : e.status === "approved"
+                                ? "bg-success"
+                                : "bg-secondary"
+                            }`}
+                          >
+                            {e.status.toUpperCase()}
+                          </span>
+                          {e.status === "rejected" && e.rejectionReason && (
+                            <div className="small text-danger mt-1" style={{ maxWidth: "150px" }}>
+                              <strong>Reason:</strong> {e.rejectionReason}
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          {e.status === "pending" ? (
+                            (e.bloodBankStatus === "none" || e.bloodBankStatus === "rejected") ? (
+                              <div className="d-flex flex-column gap-1">
+                                {e.bloodBankStatus === "rejected" && (
+                                  <div className="small text-danger mb-1">
+                                    ❌ Rejected by {e.assignedBloodBank?.name || "Blood Bank"}
+                                  </div>
+                                )}
+                                <select
+                                  className="form-select form-select-sm"
+                                  value={selectedBloodBankId[e._id] || ""}
+                                  onChange={(ev) => setSelectedBloodBankId({ ...selectedBloodBankId, [e._id]: ev.target.value })}
+                                >
+                                  <option value="">Select Blood Bank</option>
+                                  {approvedBloodBanks.map(bb => (
+                                    <option key={bb._id} value={bb._id}>{bb.name} ({bb.city})</option>
+                                  ))}
+                                </select>
+                                <button
+                                  className="btn btn-sm btn-outline-danger w-100"
+                                  onClick={() => handleAssignBloodBank(e._id)}
+                                >
+                                  {e.bloodBankStatus === "rejected" ? "Re-assign" : "Assign BB"}
+                                </button>
+                              </div>
+                            ) : (
+                              <div>
+                                <div className="fw-semibold small text-dark">{e.assignedBloodBank?.name}</div>
+                                {e.bloodBankStatus === "pending" && (
+                                  <span className="badge bg-warning text-dark mt-1">Pending BB Response</span>
+                                )}
+                                {e.bloodBankStatus === "accepted" && (
+                                  <span className="badge bg-success mt-1">Confirmed (Resources OK)</span>
+                                )}
+                                {e.bloodBankNotes && (
+                                  <div className="small text-muted mt-1" style={{ fontSize: "0.75rem" }}>
+                                    Note: {e.bloodBankNotes}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          ) : (
+                            <div className="fw-semibold small text-dark">
+                              {e.assignedBloodBank?.name || "None Assigned"}
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          {e.status === "pending" ? (
+                            <div className="d-flex flex-column gap-1">
+                              <div className="input-group input-group-sm">
+                                <span className="input-group-text bg-light text-muted small">PW</span>
+                                <input
+                                  className="form-control"
+                                  placeholder="Auto or Manual Password"
+                                  value={passwordById[e._id] || ""}
+                                  onChange={(ev) => setPasswordById({ ...passwordById, [e._id]: ev.target.value })}
+                                />
+                                <button
+                                  className="btn btn-success text-white"
+                                  onClick={() => approveEnquiry(e._id)}
+                                  disabled={e.bloodBankStatus !== "accepted"}
+                                  title={e.bloodBankStatus !== "accepted" ? "Awaiting Blood Bank Confirmation" : "Approve"}
+                                >
+                                  Approve
+                                </button>
+                              </div>
+                              <div className="input-group input-group-sm">
+                                <input
+                                  className="form-control"
+                                  placeholder="Rejection reason..."
+                                  value={rejectReasonById[e._id] || ""}
+                                  onChange={(ev) => setRejectReasonById({ ...rejectReasonById, [e._id]: ev.target.value })}
+                                />
+                                <button
+                                  className="btn btn-secondary"
+                                  onClick={() => rejectEnquiry(e._id)}
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-muted small">No pending action</span>
+                          )}
+                        </td>
+                        <td>
+                          <div className="d-flex flex-column gap-1" style={{ maxWidth: "100px" }}>
                             {e.status === "approved" && (
                               <button
-                                className="btn btn-sm btn-outline-warning"
+                                className="btn btn-sm btn-outline-warning w-100"
                                 onClick={() => {
                                   setResetEnquiryModal(e);
                                   setNewEnquiryPassword("");
                                 }}
                               >
-                                🔑 Set Password
+                                🔑 Password
                               </button>
                             )}
-                            <button className="btn btn-sm btn-outline-primary" onClick={() => openEditEnquiryModal(e)}>
+                            <button
+                              className="btn btn-sm btn-outline-primary w-100"
+                              onClick={() => openEditEnquiryModal(e)}
+                            >
                               ✏️ Edit
                             </button>
-                            <button className="btn btn-sm btn-outline-danger" onClick={() => handleDeleteEnquiry(e._id)}>
+                            <button
+                              className="btn btn-sm btn-outline-danger w-100"
+                              onClick={() => handleDeleteEnquiry(e._id)}
+                            >
                               🗑️ Delete
                             </button>
                           </div>
-                        </div>
-
-                        {e.status === "pending" && (
-                          <div className="mt-2 pt-2 border-top">
-                            <div className="input-group input-group-sm mb-2">
-                              <span className="input-group-text bg-transparent text-muted">Password</span>
-                              <input
-                                className="form-control"
-                                placeholder="Auto or Manual Password"
-                                value={passwordById[e._id] || ""}
-                                onChange={(ev) => setPasswordById({ ...passwordById, [e._id]: ev.target.value })}
-                              />
-                              <button className="btn btn-success" onClick={() => approveEnquiry(e._id)}>
-                                Approve
-                              </button>
-                            </div>
-                            <div className="input-group input-group-sm">
-                              <input
-                                className="form-control"
-                                placeholder="Rejection reason..."
-                                value={rejectReasonById[e._id] || ""}
-                                onChange={(ev) => setRejectReasonById({ ...rejectReasonById, [e._id]: ev.target.value })}
-                              />
-                              <button className="btn btn-secondary" onClick={() => rejectEnquiry(e._id)}>
-                                Reject
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
@@ -2312,7 +2386,7 @@ const Admin = () => {
                           {req.urgency === 'urgent' ? '🚨 Urgent' : '📅 Planned'}
                         </span>
                         <span className="text-sm font-bold bg-amber-50 text-amber-600 px-3 py-1 rounded-full border border-amber-200">
-                          {req.bloodGroup} (x{req.units})
+                          {req.bloodGroup} (x{req.units}) — {req.bloodComponent || "Not specified"}
                         </span>
                         <span className="text-xs text-slate-400 font-medium">
                           {new Date(req.createdAt).toLocaleString()}
@@ -2333,8 +2407,23 @@ const Admin = () => {
                           <div className="font-semibold text-green-800 mb-1">Donor Details (Accepted)</div>
                           <div className="text-green-700"><span className="font-semibold">Name:</span> {req.acceptedBy.name}</div>
                           <div className="text-green-700"><span className="font-semibold">Contact:</span> {req.acceptedBy.mobile}</div>
+                          {(req.acceptedBy.city || req.acceptedBy.state) && (
+                            <div className="text-green-700">
+                              <span className="font-semibold">Location:</span> {req.acceptedBy.city || ""}{req.acceptedBy.city && req.acceptedBy.state ? ", " : ""}{req.acceptedBy.state || ""}
+                            </div>
+                          )}
                           {req.acceptedAt && <div className="text-green-700"><span className="font-semibold">Accepted On:</span> {new Date(req.acceptedAt).toLocaleString()}</div>}
                           {req.otp && <div className="text-green-700 mt-1 font-mono"><span className="font-semibold">OTP:</span> <strong>{req.otp}</strong></div>}
+                        </div>
+                      )}
+
+                      {req.acceptedByBloodBank && (
+                        <div className="text-sm mt-2 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                          <div className="font-semibold text-purple-800 mb-1">Blood Bank Details (Accepted)</div>
+                          <div className="text-purple-700"><span className="font-semibold">Name:</span> {req.acceptedByBloodBank.name}</div>
+                          <div className="text-purple-700"><span className="font-semibold">Contact:</span> {req.acceptedByBloodBank.mobile} ({req.acceptedByBloodBank.managerName || "Manager"})</div>
+                          {req.acceptedAt && <div className="text-purple-700"><span className="font-semibold">Accepted On:</span> {new Date(req.acceptedAt).toLocaleString()}</div>}
+                          {req.otp && <div className="text-purple-700 mt-1 font-mono"><span className="font-semibold">OTP:</span> <strong>{req.otp}</strong></div>}
                         </div>
                       )}
 
@@ -2342,8 +2431,7 @@ const Admin = () => {
                         <div className="text-sm bg-slate-50 p-3 rounded-lg border border-slate-100 text-slate-600 italic mt-2">
                           "{req.additionalInfo}"
                         </div>
-                      )}
-                    </div>
+                      )}                    </div>
 
                     <div className="w-full md:w-auto bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col gap-3 min-w-[200px]">
                       <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Status Control</div>
@@ -2370,7 +2458,7 @@ const Admin = () => {
                         }`}
                       >
                         <option value="pending">⏳ Pending Review</option>
-                        <option value="active">📡 Active (Notifying Donors)</option>
+                        <option value="active">📡 Active (Notifying Donors/blood bank)</option>
                         <option value="accepted">🤝 Accepted (Blood Arranged)</option>
                         <option value="completed">✅ Donation Completed</option>
                       </select>
@@ -2542,111 +2630,7 @@ const Admin = () => {
 
         {/* --- 6. UI/UX Customizer View --- */}
         {currentView === "uiux" && (
-          <div className="chart-card">
-            <h2 className="text-danger fw-bold mb-4">🎨 UI/UX Theme Customizer</h2>
-            <p className="text-muted small mb-4">Customize the landing/Home page's background dynamic styling in real-time.</p>
-
-            <div className="dark-form d-flex flex-column gap-4" style={{ maxWidth: "600px" }}>
-              <div>
-                <label className="form-label d-block fw-bold text-white mb-2">Select Background Type</label>
-                <select
-                  className="form-select"
-                  value={homeBgType}
-                  onChange={(e) => setHomeBgType(e.target.value)}
-                >
-                  <option value="gradient">Default Animated Orbs Gradient</option>
-                  <option value="image">Custom Background Image URL</option>
-                  <option value="video">Custom Background Video URL (Looping)</option>
-                </select>
-              </div>
-
-              {homeBgType !== "gradient" && (
-                <div>
-                  <label className="form-label d-block fw-bold text-white mb-2">Upload Local {homeBgType === "image" ? "Image" : "Video"} File (via Multer)</label>
-                  <input
-                    type="file"
-                    className="form-control text-white"
-                    accept={homeBgType === "image" ? "image/*" : "video/*"}
-                    onChange={handleFileUpload}
-                    disabled={uploading}
-                  />
-                  {uploading && <small className="text-warning mt-1 d-block">📤 Uploading file to server. Please wait...</small>}
-                </div>
-              )}
-
-              {homeBgType !== "gradient" && (
-                <div>
-                  <label className="form-label d-block fw-bold text-white mb-2">Enter Custom URL</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder={homeBgType === "image" ? "Enter absolute background image URL..." : "Enter absolute video source URL (.mp4)..."}
-                    value={homeBgUrl}
-                    onChange={(e) => setHomeBgUrl(e.target.value)}
-                  />
-                  <small className="text-muted mt-1 d-block">
-                    Paste an online link to any high-res image/video.
-                  </small>
-                </div>
-              )}
-
-              {/* Presets Grid */}
-              {homeBgType !== "gradient" && (
-                <div>
-                  <label className="form-label d-block fw-bold text-white mb-2">Stunning Presets</label>
-                  <div className="row g-2">
-                    {homeBgType === "image" ? (
-                      <>
-                        <div className="col-6">
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-outline-danger w-100 text-truncate"
-                            onClick={() => setHomeBgUrl("https://images.unsplash.com/photo-1579154769741-62b291563f45?auto=format&fit=crop&w=1920&q=80")}
-                          >
-                            Preset 1: Laboratory Tech
-                          </button>
-                        </div>
-                        <div className="col-6">
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-outline-danger w-100 text-truncate"
-                            onClick={() => setHomeBgUrl("https://images.unsplash.com/photo-1518152006812-edab29b069ac?auto=format&fit=crop&w=1920&q=80")}
-                          >
-                            Preset 2: Red Abstract Art
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="col-6">
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-outline-danger w-100 text-truncate"
-                            onClick={() => setHomeBgUrl("https://assets.mixkit.co/videos/preview/mixkit-cardiology-monitor-screen-loop-animation-43644-large.mp4")}
-                          >
-                            Preset 1: ECG cardiology Loop
-                          </button>
-                        </div>
-                        <div className="col-6">
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-outline-danger w-100 text-truncate"
-                            onClick={() => setHomeBgUrl("https://assets.mixkit.co/videos/preview/mixkit-flying-through-a-red-futuristic-abstract-tunnel-41604-large.mp4")}
-                          >
-                            Preset 2: Red Flow Tunnel
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <button className="btn btn-primary mt-2" onClick={handleSaveUIUX}>
-                💾 Save Theme Settings
-              </button>
-            </div>
-          </div>
+          <HomeContentAdmin />
         )}
 
         {/* --- 9. Blood Request Background Tab View --- */}
@@ -2672,6 +2656,7 @@ const Admin = () => {
             <AdminBloodBanks />
           </div>
         )}
+
       </main>
 
       {/* --- ADD CAMP MODAL --- */}

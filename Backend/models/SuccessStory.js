@@ -9,6 +9,11 @@ const successStorySchema = new mongoose.Schema(
     image: { type: String },
     displayOrder: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
+    country: { type: String, trim: true, default: "" },
+    state: { type: String, trim: true, default: "" },
+    city: { type: String, trim: true, default: "" },
+    isGlobal: { type: Boolean, default: false },
+    priority: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

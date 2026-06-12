@@ -61,11 +61,11 @@ export default function BloodBanks() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
-  
+
   const [radius, setRadius] = useState(20);
   const [bloodGroup, setBloodGroup] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   const [selectedBank, setSelectedBank] = useState(null);
 
   // Routing state
@@ -119,10 +119,10 @@ export default function BloodBanks() {
           const coords = [`${lng},${lat}`];
           fetchedBanks.forEach(b => coords.push(`${b.location.coordinates[0]},${b.location.coordinates[1]}`));
           const coordsString = coords.join(';');
-          
-          const destIndices = Array.from({length: fetchedBanks.length}, (_, i) => i + 1).join(';');
+
+          const destIndices = Array.from({ length: fetchedBanks.length }, (_, i) => i + 1).join(';');
           const tableUrl = `https://router.project-osrm.org/table/v1/driving/${coordsString}?sources=0&destinations=${destIndices}&annotations=distance`;
-          
+
           const tableRes = await axios.get(tableUrl);
           if (tableRes.data && tableRes.data.distances && tableRes.data.distances[0]) {
             const distances = tableRes.data.distances[0]; // Array of distances in meters
@@ -141,8 +141,8 @@ export default function BloodBanks() {
           console.error("Failed to fetch driving distances from OSRM table", tableErr);
           // Fallback to formatting aerial distance
           fetchedBanks = fetchedBanks.map(bank => {
-             bank.distanceKm = Number(bank.distanceKm).toFixed(2);
-             return bank;
+            bank.distanceKm = Number(bank.distanceKm).toFixed(2);
+            return bank;
           });
         }
       }
@@ -164,7 +164,7 @@ export default function BloodBanks() {
       setError("Please allow location access to get directions.");
       return;
     }
-    
+
     // Check if we already have this route
     if (activeBankRoute?._id === bank._id && routeData) {
       return;
@@ -178,7 +178,7 @@ export default function BloodBanks() {
     try {
       const url = `https://router.project-osrm.org/route/v1/driving/${userLocation.lng},${userLocation.lat};${bank.location.coordinates[0]},${bank.location.coordinates[1]}?overview=full&geometries=geojson`;
       const response = await axios.get(url);
-      
+
       if (response.data && response.data.routes && response.data.routes.length > 0) {
         const route = response.data.routes[0];
         setRouteData({
@@ -264,7 +264,7 @@ export default function BloodBanks() {
               <option value={50}>50 km Radius</option>
             </select>
           </div>
-          
+
           <button onClick={getUserLocation} className="btn-retry" title="Refresh Location">
             <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -309,8 +309,8 @@ export default function BloodBanks() {
             )}
 
             {bloodBanks.map((bank) => (
-              <div 
-                key={bank._id} 
+              <div
+                key={bank._id}
                 className={`bank-card ${selectedBank?._id === bank._id ? 'selected' : ''}`}
                 onClick={() => setSelectedBank(bank)}
               >
@@ -320,9 +320,9 @@ export default function BloodBanks() {
                     {bank.distanceKm} km
                   </span>
                 </div>
-                
+
                 <p className="bank-address">{bank.address}</p>
-                
+
                 <div className="bank-tags">
                   <span className="status-badge bg-red-600/20 text-red-500 border border-red-500/30">
                     {bank.available24x7 ? "24x7 OPEN" : `${bank.openingTime || "N/A"} - ${bank.closingTime || "N/A"}`}
@@ -330,12 +330,14 @@ export default function BloodBanks() {
                 </div>
 
                 <div className="blood-groups">
-                  {bank.inventory && Object.entries(bank.inventory).filter(([_, count]) => count > 0).length > 0 ? (
-                    Object.entries(bank.inventory).filter(([_, count]) => count > 0).map(([bg, count]) => (
-                      <span key={bg} className="bg-chip" title={`${count} Units`}>{bg} <span className="text-xs ml-1 opacity-70">({count})</span></span>
+                  {bank.inventorySummary && bank.inventorySummary.length > 0 ? (
+                    bank.inventorySummary.map((item) => (
+                      <span key={item.bloodGroup} className="bg-chip" title={`${item.totalUnits} Units`}>
+                        {item.bloodGroup} <span className="text-xs ml-1 opacity-70">({item.totalUnits})</span>
+                      </span>
                     ))
                   ) : (
-                    <span className="text-zinc-500 text-sm">No inventory data</span>
+                    <span className="text-zinc-500 text-sm">No blood stock available</span>
                   )}
                 </div>
 
@@ -344,7 +346,7 @@ export default function BloodBanks() {
                     <Phone className="w-4 h-4" />
                     Call
                   </a>
-                  <button 
+                  <button
                     className="btn-directions"
                     onClick={(e) => handleDirectionsClick(e, bank)}
                   >
@@ -358,7 +360,7 @@ export default function BloodBanks() {
 
           {/* MAP SECTION */}
           <div className="bloodbanks-map" style={{ zIndex: 1 }}>
-            
+
             {/* Overlay for routing loading state */}
             {isRouting && (
               <div className="map-loading-overlay">
@@ -379,7 +381,7 @@ export default function BloodBanks() {
                       <X className="w-5 h-5" />
                     </button>
                   </div>
-                  
+
                   <div className="route-panel-body">
                     <div className="route-locations">
                       <div className="route-line-connector"></div>
@@ -414,7 +416,7 @@ export default function BloodBanks() {
                       <p className="text-red-500 text-sm mb-3">{routeError}</p>
                     )}
 
-                    <a 
+                    <a
                       href={`https://www.google.com/maps/dir/?api=1&origin=${userLocation?.lat},${userLocation?.lng}&destination=${activeBankRoute.location.coordinates[1]},${activeBankRoute.location.coordinates[0]}`}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -427,16 +429,16 @@ export default function BloodBanks() {
               </div>
             )}
 
-            <MapContainer 
-              center={[userLocation?.lat || defaultCenter.lat, userLocation?.lng || defaultCenter.lng]} 
-              zoom={userLocation ? 12 : 6} 
+            <MapContainer
+              center={[userLocation?.lat || defaultCenter.lat, userLocation?.lng || defaultCenter.lng]}
+              zoom={userLocation ? 12 : 6}
               style={{ height: '100%', width: '100%', borderRadius: '12px' }}
             >
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
-              
+
               <MapUpdater userLocation={userLocation} bloodBanks={bloodBanks} activeBankRoute={activeBankRoute} routeData={routeData} />
 
               {/* User Location Marker */}
@@ -455,10 +457,10 @@ export default function BloodBanks() {
 
               {/* Drawn Route */}
               {routeData && activeBankRoute && (
-                <GeoJSON 
-                  key={activeBankRoute._id} 
-                  data={routeData.geometry} 
-                  style={{ color: '#dc2626', weight: 4, opacity: 0.8 }} 
+                <GeoJSON
+                  key={activeBankRoute._id}
+                  data={routeData.geometry}
+                  style={{ color: '#dc2626', weight: 4, opacity: 0.8 }}
                 />
               )}
 
@@ -481,10 +483,10 @@ export default function BloodBanks() {
                       <p className="info-distance">Distance: {bank.distanceKm} km</p>
                       <div className="info-actions">
                         <a href={`tel:${bank.mobile}`} className="info-btn-call">Call</a>
-                        <a 
-                          href={`https://www.google.com/maps/dir/?api=1&destination=${bank.location.coordinates[1]},${bank.location.coordinates[0]}`} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
+                        <a
+                          href={`https://www.google.com/maps/dir/?api=1&destination=${bank.location.coordinates[1]},${bank.location.coordinates[0]}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="info-btn-dir"
                         >
                           Directions

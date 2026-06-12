@@ -5,6 +5,7 @@ import ImpactGalleryAdmin from "../components/ImpactGalleryAdmin.jsx";
 import SuccessStoriesAdmin from "../components/SuccessStoriesAdmin.jsx";
 import NewsAdmin from "../components/NewsAdmin.jsx";
 import BloodRequestBackgroundAdmin from "../components/BloodRequestBackgroundAdmin.jsx";
+import HomeContentAdmin from "../components/HomeContentAdmin.jsx";
 import AdminBloodBanks from "../components/AdminBloodBanks.jsx";
 import AdminBloodBankRequests from "../components/AdminBloodBankRequests.jsx";
 import adminService from "../services/adminService";
@@ -66,6 +67,11 @@ const Admin = () => {
   const [bloodRequests, setBloodRequests] = useState([]);
   const [loadingBloodRequests, setLoadingBloodRequests] = useState(false);
   const [totalPlatformUsers, setTotalPlatformUsers] = useState(0);
+  const [brFilterState, setBrFilterState] = useState("");
+  const [brFilterBloodGroup, setBrFilterBloodGroup] = useState("");
+  const [brFilterStatus, setBrFilterStatus] = useState("");
+  const [brSearchQuery, setBrSearchQuery] = useState("");
+  const [notifyingId, setNotifyingId] = useState(null);
 
   // Donor Edit states
   const [editDonorId, setEditDonorId] = useState(null);
@@ -229,15 +235,36 @@ const Admin = () => {
     if (currentView === "all-users") fetchAllUsers();
   }, [currentView]);
 
-  const fetchBloodRequests = async () => {
+  const fetchBloodRequests = async (filters = {}) => {
     setLoadingBloodRequests(true);
     try {
-      const data = await adminService.getBloodRequests();
+      const params = {};
+      if (filters.state) params.state = filters.state;
+      if (filters.bloodGroup) params.bloodGroup = filters.bloodGroup;
+      if (filters.status) params.status = filters.status;
+      const data = await adminService.getBloodRequests(params);
       setBloodRequests(data || []);
     } catch (err) {
       console.error("Failed to load blood requests", err);
     } finally {
       setLoadingBloodRequests(false);
+    }
+  };
+
+  const handleNotifyDonors = async (reqId) => {
+    if (!window.confirm("Re-notify all matching donors and blood banks?")) return;
+    setNotifyingId(reqId);
+    try {
+      const res = await adminService.notifyBloodRequest(reqId);
+      if (res.success) {
+        toast.success(`Notified ${res.notifiedCount ?? ""} donors/banks!`);
+      } else {
+        toast.error(res.message || "Notification failed");
+      }
+    } catch (err) {
+      toast.error("Error sending notifications");
+    } finally {
+      setNotifyingId(null);
     }
   };
 
@@ -1435,7 +1462,7 @@ const Admin = () => {
             onClick={() => setCurrentView("uiux")}
             title="UI/UX"
           >
-            <span className="menu-item-icon">🎨</span> <span className="menu-item-text">UI/UX</span>
+            <span className="menu-item-icon">🎨</span> <span className="menu-item-text">UI/UX (Personalization)</span>
           </button>
           <button
             className={`menu-item ${currentView === "blood-request-background" ? "active" : ""}`}
@@ -1655,6 +1682,7 @@ const Admin = () => {
                               <td>{req.patientName}</td>
                               <td>
                                 <span className="donor-table-group">{req.bloodGroup}</span>
+                                <div className="text-[10px] text-slate-500 font-medium">{req.bloodComponent || "Not specified"}</div>
                               </td>
                               <td>{req.hospital} {req.city ? `(${req.city})` : ''}</td>
                               <td>
@@ -1681,9 +1709,6 @@ const Admin = () => {
             <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
               <h2 className="text-danger fw-bold m-0">Camp Registrations</h2>
               <div className="d-flex gap-2">
-                <button className="btn btn-primary" onClick={() => setShowAddCampModal(true)}>
-                  + Add Camp
-                </button>
                 <button className="btn btn-outline-secondary" onClick={fetchCamps}>
                   Refresh
                 </button>
@@ -1928,6 +1953,9 @@ const Admin = () => {
                       <th>City</th>
                       <th>Mobile</th>
                       <th>Total Donations</th>
+                      <th>Eligibility</th>
+                      <th>Next Eligible Date</th>
+                      <th>Days Remaining</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1944,6 +1972,33 @@ const Admin = () => {
                         <td>{user.city || "-"}</td>
                         <td>{user.mobile || user.phone || "-"}</td>
                         <td>{user.totalDonations || 0}</td>
+                        <td>
+                          {user.role === "donor" ? (
+                            <span className={`badge ${
+                              user.donationEligibilityStatus === "Eligible to Donate" 
+                                ? "bg-success" 
+                                : "bg-warning text-dark"
+                            }`}>
+                              {user.donationEligibilityStatus || "Eligible"}
+                            </span>
+                          ) : (
+                            "-"
+                          )}
+                        </td>
+                        <td>
+                          {user.role === "donor" && user.nextEligibleDonationDate
+                            ? new Date(user.nextEligibleDonationDate).toLocaleDateString("en-IN", {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              })
+                            : "-"}
+                        </td>
+                        <td>
+                          {user.role === "donor" 
+                            ? (user.daysRemaining > 0 ? `${user.daysRemaining} days` : "0 days")
+                            : "-"}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -2275,17 +2330,87 @@ const Admin = () => {
             ============================================================ */}
         {currentView === "blood-requests" && (
           <div className="animate-fade-in space-y-6 max-w-7xl mx-auto pb-12">
-            <div className="flex items-center justify-between mb-8">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
               <div>
-                <h2 className="text-3xl font-black text-slate-800 font-cinzel mb-2">Emergency Blood Requests</h2>
-                <p className="text-slate-500 font-medium">Manage and update status of blood requests</p>
+                <h2 className="text-3xl font-black text-slate-800 font-cinzel mb-1">Emergency Blood Requests</h2>
+                <p className="text-slate-500 font-medium">Manage, filter, and notify donors for blood requests</p>
               </div>
               <button
-                onClick={fetchBloodRequests}
+                onClick={() => fetchBloodRequests({ state: brFilterState, bloodGroup: brFilterBloodGroup, status: brFilterStatus })}
                 className="bg-white border border-slate-200 text-slate-700 px-4 py-2 rounded-xl text-sm font-bold shadow-sm hover:bg-slate-50 transition-colors flex items-center gap-2"
               >
                 🔄 Refresh
               </button>
+            </div>
+
+            {/* Filter Bar */}
+            <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-wrap gap-3 items-end">
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Search Patient / City</label>
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={brSearchQuery}
+                  onChange={(e) => setBrSearchQuery(e.target.value)}
+                  className="px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-red-400 bg-slate-50 min-w-[180px]"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">State</label>
+                <select
+                  value={brFilterState}
+                  onChange={(e) => { setBrFilterState(e.target.value); fetchBloodRequests({ state: e.target.value, bloodGroup: brFilterBloodGroup, status: brFilterStatus }); }}
+                  className="px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-red-400 bg-slate-50 cursor-pointer"
+                >
+                  <option value="">All States</option>
+                  {["Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka","Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram","Nagaland","Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana","Tripura","Uttar Pradesh","Uttarakhand","West Bengal","Delhi","Jammu & Kashmir","Ladakh","Puducherry","Chandigarh","Andaman & Nicobar Islands","Dadra & Nagar Haveli","Daman & Diu","Lakshadweep"].map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Blood Group</label>
+                <select
+                  value={brFilterBloodGroup}
+                  onChange={(e) => { setBrFilterBloodGroup(e.target.value); fetchBloodRequests({ state: brFilterState, bloodGroup: e.target.value, status: brFilterStatus }); }}
+                  className="px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-red-400 bg-slate-50 cursor-pointer"
+                >
+                  <option value="">All Groups</option>
+                  {["A+","A-","B+","B-","O+","O-","AB+","AB-"].map(bg => (
+                    <option key={bg} value={bg}>{bg}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Status</label>
+                <select
+                  value={brFilterStatus}
+                  onChange={(e) => { setBrFilterStatus(e.target.value); fetchBloodRequests({ state: brFilterState, bloodGroup: brFilterBloodGroup, status: e.target.value }); }}
+                  className="px-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-red-400 bg-slate-50 cursor-pointer"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="active">Active</option>
+                  <option value="accepted">Accepted</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
+              {(brFilterState || brFilterBloodGroup || brFilterStatus || brSearchQuery) && (
+                <button
+                  onClick={() => { setBrFilterState(""); setBrFilterBloodGroup(""); setBrFilterStatus(""); setBrSearchQuery(""); fetchBloodRequests(); }}
+                  className="px-3 py-2 rounded-lg border border-red-200 bg-red-50 text-red-600 text-xs font-bold hover:bg-red-100 transition-colors"
+                >
+                  ✕ Clear Filters
+                </button>
+              )}
+              <div className="ml-auto text-sm font-semibold text-slate-500">
+                {bloodRequests.filter(r => {
+                  if (!brSearchQuery) return true;
+                  const q = brSearchQuery.toLowerCase();
+                  return (r.patientName||r.name||"").toLowerCase().includes(q) || (r.city||"").toLowerCase().includes(q) || (r.hospitalName||r.hospital||"").toLowerCase().includes(q);
+                }).length} results
+              </div>
             </div>
 
             {loadingBloodRequests ? (
@@ -2295,89 +2420,123 @@ const Admin = () => {
             ) : bloodRequests.length === 0 ? (
               <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-sm">
                 <div className="text-6xl mb-4">🙌</div>
-                <h3 className="text-xl font-bold text-slate-800 mb-2">No Active Requests</h3>
-                <p className="text-slate-500">There are currently no emergency blood requests.</p>
+                <h3 className="text-xl font-bold text-slate-800 mb-2">No Requests Found</h3>
+                <p className="text-slate-500">Try clearing your filters or check back later.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4">
-                {bloodRequests.map((req) => (
-                  <div key={req._id} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+                {bloodRequests
+                  .filter(r => {
+                    if (!brSearchQuery) return true;
+                    const q = brSearchQuery.toLowerCase();
+                    return (r.patientName||r.name||"").toLowerCase().includes(q) || (r.city||"").toLowerCase().includes(q) || (r.hospitalName||r.hospital||"").toLowerCase().includes(q);
+                  })
+                  .map((req) => (
+                  <div key={req._id} className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col md:flex-row gap-6 items-start justify-between">
                     <div className="flex-1 space-y-3">
-                      <div className="flex flex-wrap items-center gap-3">
-                        <span className="text-sm font-bold bg-slate-100 text-slate-600 px-3 py-1 rounded-full border border-slate-200">
-                          ID: {req.requestId}
+                      {/* Top badges row */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-bold bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full border border-slate-200">
+                          ID: {req.requestId || req._id?.slice(-6)}
                         </span>
-                        <span className={`text-sm font-bold px-3 py-1 rounded-full border ${req.urgency === 'urgent' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-blue-50 text-blue-600 border-blue-200'
-                          }`}>
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${
+                          req.urgency === 'urgent' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-blue-50 text-blue-600 border-blue-200'
+                        }`}>
                           {req.urgency === 'urgent' ? '🚨 Urgent' : '📅 Planned'}
                         </span>
-                        <span className="text-sm font-bold bg-amber-50 text-amber-600 px-3 py-1 rounded-full border border-amber-200">
-                          {req.bloodGroup} (x{req.units})
+                        <span className="text-xs font-bold bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full border border-amber-200">
+                          🩸 {req.bloodGroup} × {req.unitsNeeded || req.units || 1} ({req.bloodComponent || "Not specified"})
                         </span>
-                        <span className="text-xs text-slate-400 font-medium">
+                        {req.state && (
+                          <span className="text-xs font-bold bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-full border border-indigo-200">
+                            📌 {req.state}
+                          </span>
+                        )}
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${
+                          req.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' :
+                          req.status === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                          req.status === 'accepted' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                          'bg-slate-50 text-slate-600 border-slate-200'
+                        }`}>
+                          {req.status === 'active' ? '📡 Active' : req.status === 'pending' ? '⏳ Pending' : req.status === 'accepted' ? '🤝 Accepted' : '✅ Completed'}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium ml-auto">
                           {new Date(req.createdAt).toLocaleString()}
                         </span>
                       </div>
 
+                      {/* Patient & Hospital */}
                       <div>
-                        <h3 className="text-xl font-bold text-slate-800">{req.patientName}</h3>
-                        <p className="text-sm text-slate-500 font-medium">📍 {req.hospital}, {req.city}</p>
+                        <h3 className="text-lg font-bold text-slate-800">{req.patientName || req.name}</h3>
+                        <p className="text-sm text-slate-500 font-medium">🏥 {req.hospitalName || req.hospital}, {req.hospitalArea || req.area || ""} — 📍 {req.city}{req.state ? `, ${req.state}` : ""}</p>
+                        {req.mobile && <p className="text-sm text-slate-600 mt-0.5">📞 Requester: <span className="font-semibold">{req.mobile}</span></p>}
                       </div>
 
-                      <div className="text-sm text-slate-600">
-                        <span className="font-semibold text-slate-800">Requested by:</span> {req.recipient?.name} ({req.recipient?.mobile})
-                      </div>
-                      
-                      {req.acceptedBy && (
-                        <div className="text-sm mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                          <div className="font-semibold text-green-800 mb-1">Donor Details (Accepted)</div>
-                          <div className="text-green-700"><span className="font-semibold">Name:</span> {req.acceptedBy.name}</div>
-                          <div className="text-green-700"><span className="font-semibold">Contact:</span> {req.acceptedBy.mobile}</div>
-                          {req.acceptedAt && <div className="text-green-700"><span className="font-semibold">Accepted On:</span> {new Date(req.acceptedAt).toLocaleString()}</div>}
-                          {req.otp && <div className="text-green-700 mt-1 font-mono"><span className="font-semibold">OTP:</span> <strong>{req.otp}</strong></div>}
+                      {req.additionalInfo && (
+                        <div className="text-sm bg-slate-50 p-3 rounded-lg border border-slate-100 text-slate-600 italic">
+                          &ldquo;{req.additionalInfo}&rdquo;
                         </div>
                       )}
 
-                      {req.additionalInfo && (
-                        <div className="text-sm bg-slate-50 p-3 rounded-lg border border-slate-100 text-slate-600 italic mt-2">
-                          "{req.additionalInfo}"
+                      {req.acceptedBy && (
+                        <div className="text-sm p-3 bg-green-50 border border-green-200 rounded-lg">
+                          <div className="font-semibold text-green-800 mb-1">✅ Donor Details (Accepted)</div>
+                          <div className="text-green-700">Name: {req.acceptedBy.name}</div>
+                          <div className="text-green-700">Contact: {req.acceptedBy.mobile}</div>
+                          {(req.acceptedBy.city || req.acceptedBy.state) && (
+                            <div className="text-green-700">
+                              Location: {req.acceptedBy.city || ""}{req.acceptedBy.city && req.acceptedBy.state ? ", " : ""}{req.acceptedBy.state || ""}
+                            </div>
+                          )}
+                          {req.acceptedAt && <div className="text-green-700">Accepted On: {new Date(req.acceptedAt).toLocaleString()}</div>}
+                          {req.otp && <div className="text-green-700 mt-1 font-mono">OTP: <strong>{req.otp}</strong></div>}
                         </div>
                       )}
                     </div>
 
-                    <div className="w-full md:w-auto bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col gap-3 min-w-[200px]">
-                      <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Status Control</div>
-
-                      <select
-                        value={req.status}
-                        onChange={async (e) => {
-                          const newStatus = e.target.value;
-                          if (window.confirm(`Change status to ${newStatus}?`)) {
-                            try {
-                              await adminService.updateBloodRequestStatus(req.requestId, newStatus);
-                              fetchBloodRequests();
-                              toast.success("Status updated!");
-                            } catch (err) {
-                              toast.error("Error updating status");
+                    {/* Right Control Panel */}
+                    <div className="w-full md:w-52 flex flex-col gap-3 shrink-0">
+                      <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-col gap-3">
+                        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Status Control</div>
+                        <select
+                          value={req.status}
+                          onChange={async (e) => {
+                            const newStatus = e.target.value;
+                            if (window.confirm(`Change status to "${newStatus}"?`)) {
+                              try {
+                                await adminService.updateBloodRequestStatus(req.requestId || req._id, newStatus);
+                                fetchBloodRequests({ state: brFilterState, bloodGroup: brFilterBloodGroup, status: brFilterStatus });
+                                toast.success("Status updated!");
+                              } catch (err) {
+                                toast.error("Error updating status");
+                              }
                             }
-                          }
-                        }}
-                        className={`w-full p-2.5 rounded-lg border-2 font-bold text-sm outline-none cursor-pointer appearance-none ${
-                          req.status === 'pending' ? 'border-amber-200 bg-amber-50 text-amber-700 focus:border-amber-400' :
-                          req.status === 'active' ? 'border-blue-200 bg-blue-50 text-blue-700 focus:border-blue-400' :
-                          req.status === 'accepted' ? 'border-purple-200 bg-purple-50 text-purple-700 focus:border-purple-400' :
-                          'border-green-200 bg-green-50 text-green-700 focus:border-green-400'
-                        }`}
-                      >
-                        <option value="pending">⏳ Pending Review</option>
-                        <option value="active">📡 Active (Notifying Donors)</option>
-                        <option value="accepted">🤝 Accepted (Blood Arranged)</option>
-                        <option value="completed">✅ Donation Completed</option>
-                      </select>
-
-                      <div className="text-[10px] text-slate-400 font-medium text-center">
-                        Changes reflect live for the recipient
+                          }}
+                          className={`w-full p-2.5 rounded-lg border-2 font-bold text-xs outline-none cursor-pointer appearance-none ${
+                            req.status === 'pending' ? 'border-amber-200 bg-amber-50 text-amber-700' :
+                            req.status === 'active' ? 'border-blue-200 bg-blue-50 text-blue-700' :
+                            req.status === 'accepted' ? 'border-purple-200 bg-purple-50 text-purple-700' :
+                            'border-green-200 bg-green-50 text-green-700'
+                          }`}
+                        >
+                          <option value="pending">⏳ Pending Review</option>
+                          <option value="active">📡 Active</option>
+                          <option value="accepted">🤝 Accepted</option>
+                          <option value="completed">✅ Completed</option>
+                        </select>
                       </div>
+
+                      {/* Notify Button */}
+                      <button
+                        onClick={() => handleNotifyDonors(req.requestId || req._id)}
+                        disabled={notifyingId === (req.requestId || req._id)}
+                        className="w-full py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-500 text-white text-xs font-bold shadow hover:from-red-500 hover:to-rose-400 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                      >
+                        {notifyingId === (req.requestId || req._id) ? (
+                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : "📣"}
+                        {notifyingId === (req.requestId || req._id) ? "Notifying..." : "Notify Donors"}
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -2540,112 +2699,10 @@ const Admin = () => {
           </div>
         )}
 
-        {/* --- 6. UI/UX Customizer View --- */}
+        {/* --- UI/UX / Personalized Homepage Content Manager --- */}
         {currentView === "uiux" && (
-          <div className="chart-card">
-            <h2 className="text-danger fw-bold mb-4">🎨 UI/UX Theme Customizer</h2>
-            <p className="text-muted small mb-4">Customize the landing/Home page's background dynamic styling in real-time.</p>
-
-            <div className="dark-form d-flex flex-column gap-4" style={{ maxWidth: "600px" }}>
-              <div>
-                <label className="form-label d-block fw-bold text-white mb-2">Select Background Type</label>
-                <select
-                  className="form-select"
-                  value={homeBgType}
-                  onChange={(e) => setHomeBgType(e.target.value)}
-                >
-                  <option value="gradient">Default Animated Orbs Gradient</option>
-                  <option value="image">Custom Background Image URL</option>
-                  <option value="video">Custom Background Video URL (Looping)</option>
-                </select>
-              </div>
-
-              {homeBgType !== "gradient" && (
-                <div>
-                  <label className="form-label d-block fw-bold text-white mb-2">Upload Local {homeBgType === "image" ? "Image" : "Video"} File (via Multer)</label>
-                  <input
-                    type="file"
-                    className="form-control text-white"
-                    accept={homeBgType === "image" ? "image/*" : "video/*"}
-                    onChange={handleFileUpload}
-                    disabled={uploading}
-                  />
-                  {uploading && <small className="text-warning mt-1 d-block">📤 Uploading file to server. Please wait...</small>}
-                </div>
-              )}
-
-              {homeBgType !== "gradient" && (
-                <div>
-                  <label className="form-label d-block fw-bold text-white mb-2">Enter Custom URL</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder={homeBgType === "image" ? "Enter absolute background image URL..." : "Enter absolute video source URL (.mp4)..."}
-                    value={homeBgUrl}
-                    onChange={(e) => setHomeBgUrl(e.target.value)}
-                  />
-                  <small className="text-muted mt-1 d-block">
-                    Paste an online link to any high-res image/video.
-                  </small>
-                </div>
-              )}
-
-              {/* Presets Grid */}
-              {homeBgType !== "gradient" && (
-                <div>
-                  <label className="form-label d-block fw-bold text-white mb-2">Stunning Presets</label>
-                  <div className="row g-2">
-                    {homeBgType === "image" ? (
-                      <>
-                        <div className="col-6">
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-outline-danger w-100 text-truncate"
-                            onClick={() => setHomeBgUrl("https://images.unsplash.com/photo-1579154769741-62b291563f45?auto=format&fit=crop&w=1920&q=80")}
-                          >
-                            Preset 1: Laboratory Tech
-                          </button>
-                        </div>
-                        <div className="col-6">
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-outline-danger w-100 text-truncate"
-                            onClick={() => setHomeBgUrl("https://images.unsplash.com/photo-1518152006812-edab29b069ac?auto=format&fit=crop&w=1920&q=80")}
-                          >
-                            Preset 2: Red Abstract Art
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="col-6">
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-outline-danger w-100 text-truncate"
-                            onClick={() => setHomeBgUrl("https://assets.mixkit.co/videos/preview/mixkit-cardiology-monitor-screen-loop-animation-43644-large.mp4")}
-                          >
-                            Preset 1: ECG cardiology Loop
-                          </button>
-                        </div>
-                        <div className="col-6">
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-outline-danger w-100 text-truncate"
-                            onClick={() => setHomeBgUrl("https://assets.mixkit.co/videos/preview/mixkit-flying-through-a-red-futuristic-abstract-tunnel-41604-large.mp4")}
-                          >
-                            Preset 2: Red Flow Tunnel
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <button className="btn btn-primary mt-2" onClick={handleSaveUIUX}>
-                💾 Save Theme Settings
-              </button>
-            </div>
+          <div className="dashboard-details-grid pt-4">
+            <HomeContentAdmin />
           </div>
         )}
 

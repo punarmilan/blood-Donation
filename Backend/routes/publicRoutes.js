@@ -1,9 +1,16 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import Camp from '../models/Camp.js';
+import User from '../models/User.js';
 import CampRegistration from '../models/CampRegistration.js';
+import BloodBank from '../models/BloodBank.js';
 import { sendMessage } from '../whatsapp/waClient.js';
 import messages from '../whatsapp/waMessages.js';
+import HomeContent from '../models/HomeContent.js';
+import BloodRequestBackground from '../models/BloodRequestBackground.js';
+import ImpactGallery from '../models/ImpactGallery.js';
+import SuccessStory from '../models/SuccessStory.js';
+import News from '../models/News.js';
 
 const router = express.Router();
 
@@ -174,15 +181,231 @@ router.post('/camp/:campId/register', async (req, res) => {
 // API to fetch all upcoming public camps
 router.get('/camps', async (req, res) => {
   try {
+    const { state, city } = req.query;
     const now = new Date();
     // find camps that are either upcoming or active, where date is not past today's end
     now.setHours(0,0,0,0);
-    const camps = await Camp.find({
+    
+    const filter = {
       date: { $gte: now },
       status: { $nin: ['completed', 'cancelled'] }
-    }).sort({ date: 1 }).limit(10);
+    };
+
+    if (state) {
+      filter.state = new RegExp(`^${state.trim()}$`, "i");
+    }
+    if (city) {
+      filter.city = new RegExp(`^${city.trim()}$`, "i");
+    }
+
+    const camps = await Camp.find(filter).sort({ date: 1 }).limit(10);
     
     res.json({ success: true, data: camps });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// API to fetch landing page stats (donors, lives saved, camps organized)
+router.get('/stats', async (req, res) => {
+  try {
+    const countDonors = await User.countDocuments({ role: 'donor' });
+    const completedCamps = await Camp.find({ status: 'completed' });
+    
+    let totalUnits = 0;
+    completedCamps.forEach(camp => {
+      totalUnits += camp.totalUnitsCollected || 0;
+    });
+    
+    const countLives = totalUnits * 3;
+    const countCamps = await Camp.countDocuments();
+    const countBloodBanks = await BloodBank.countDocuments();
+    
+    res.json({
+      success: true,
+      stats: {
+        donors: countDonors,
+        livesSaved: countLives,
+        unitsDonated: totalUnits,
+        camps: countCamps,
+        bloodBanks: countBloodBanks
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/* ── Location-Based Fetching Helpers ─────────────────────── */
+
+const getLocalizedSingle = async (Model, queryParams, defaultFallback = null) => {
+  const { country, state, city } = queryParams;
+
+  // 1. Exact city match
+  if (country && state && city) {
+    const match = await Model.findOne({
+      country: new RegExp(`^${country.trim()}$`, 'i'),
+      state: new RegExp(`^${state.trim()}$`, 'i'),
+      city: new RegExp(`^${city.trim()}$`, 'i'),
+      isActive: true
+    }).sort({ priority: -1, updatedAt: -1 });
+    if (match) return match;
+  }
+
+  // 2. State match
+  if (country && state) {
+    const match = await Model.findOne({
+      country: new RegExp(`^${country.trim()}$`, 'i'),
+      state: new RegExp(`^${state.trim()}$`, 'i'),
+      isActive: true
+    }).sort({ priority: -1, updatedAt: -1 });
+    if (match) return match;
+  }
+
+  // 3. Country match
+  if (country) {
+    const match = await Model.findOne({
+      country: new RegExp(`^${country.trim()}$`, 'i'),
+      isActive: true
+    }).sort({ priority: -1, updatedAt: -1 });
+    if (match) return match;
+  }
+
+  // 4. Global match
+  const globalMatch = await Model.findOne({
+    isGlobal: true,
+    isActive: true
+  }).sort({ priority: -1, updatedAt: -1 });
+  if (globalMatch) return globalMatch;
+
+  // 5. Default/Fallback
+  return defaultFallback;
+};
+
+const getLocalizedList = async (Model, queryParams, findOptions = {}) => {
+  const { country, state, city } = queryParams;
+  const activeField = findOptions.activeField || "isActive";
+  const baseQuery = { [activeField]: true };
+
+  // Conditions array for location matching
+  const conditions = [
+    { isGlobal: true }
+  ];
+
+  if (country) {
+    // 1. Country level match (matches country, but state is blank/null/not set)
+    conditions.push({
+      country: new RegExp(`^${country.trim()}$`, 'i'),
+      $or: [{ state: "" }, { state: null }, { state: { $exists: false } }]
+    });
+
+    if (state) {
+      // 2. State level match (matches country and state, but city is blank/null/not set)
+      conditions.push({
+        country: new RegExp(`^${country.trim()}$`, 'i'),
+        state: new RegExp(`^${state.trim()}$`, 'i'),
+        $or: [{ city: "" }, { city: null }, { city: { $exists: false } }]
+      });
+
+      if (city) {
+        // 3. City level match (matches country, state, and city exactly)
+        conditions.push({
+          country: new RegExp(`^${country.trim()}$`, 'i'),
+          state: new RegExp(`^${state.trim()}$`, 'i'),
+          city: new RegExp(`^${city.trim()}$`, 'i')
+        });
+      }
+    }
+  }
+
+  // Find all items matching any of these targeting conditions
+  const list = await Model.find({
+    ...baseQuery,
+    $or: conditions
+  }).sort({ priority: -1, updatedAt: -1 });
+
+  // If we found targeted or global items, return them
+  if (list && list.length > 0) {
+    return list;
+  }
+
+  // If a location filter was specified, do not fall back to all items (to avoid leaking other locations)
+  const hasLocationFilter = !!(country && country.trim()) || !!(state && state.trim()) || !!(city && city.trim());
+  if (hasLocationFilter) {
+    return [];
+  }
+
+  // Fallback: If no targeted or global items exist at all, return all active items as a last resort
+  return await Model.find({ ...baseQuery }).sort({ updatedAt: -1 });
+};
+
+/* ── Public Localized APIs ──────────────────────── */
+
+// @route   GET /api/public/home-content
+router.get('/home-content', async (req, res) => {
+  try {
+    const defaultHome = {
+      country: "",
+      state: "",
+      city: "",
+      isGlobal: true,
+      isActive: true,
+      priority: 0,
+      heroHeadline: "Save Lives, Donate Blood",
+      heroSubtitle: "Connecting blood donors with recipients in real-time.",
+      heroButtonText: "Find Donors",
+      heroSecondaryButtonText: "Become a Donor",
+      homeBackgroundVideo: "",
+      homeBackgroundImage: "",
+      emergencyBannerText: "Emergency blood support is available 24/7.",
+      localImpactText: "Together, we have saved thousands of lives.",
+      localDonorCount: 1500,
+      localBloodBankCount: 25,
+      preferredLanguage: "English"
+    };
+
+    const content = await getLocalizedSingle(HomeContent, req.query, defaultHome);
+    res.json({ success: true, data: content });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// @route   GET /api/public/blood-request-background
+router.get('/blood-request-background', async (req, res) => {
+  try {
+    const content = await getLocalizedSingle(BloodRequestBackground, req.query, null);
+    res.json({ success: true, background: content });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// @route   GET /api/public/impact-gallery
+router.get('/impact-gallery', async (req, res) => {
+  try {
+    const list = await getLocalizedList(ImpactGallery, req.query);
+    res.json({ success: true, data: list });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// @route   GET /api/public/success-stories
+router.get('/success-stories', async (req, res) => {
+  try {
+    const list = await getLocalizedList(SuccessStory, req.query);
+    res.json({ success: true, data: list });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// @route   GET /api/public/news-awareness
+router.get('/news-awareness', async (req, res) => {
+  try {
+    const list = await getLocalizedList(News, req.query, { activeField: "published" });
+    res.json({ success: true, data: list });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

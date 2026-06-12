@@ -13,12 +13,12 @@ const router = express.Router();
 // 1. Submit Enquiry (Public)
 router.post("/submit", async (req, res) => {
   try {
-    const { organizerName, phone, email, organizationType, organizationName, preferredDate, preferredTime, area, expectedDonors, venueAvailable, message } = req.body;
+    const { organizerName, phone, email, organizationType, organizationName, preferredDate, preferredTime, area, state, city, address, pincode, expectedDonors, venueAvailable, message } = req.body;
 
     const enquiry = new OrganizerEnquiry({
       organizerName, phone, email, 
       organizationType: organizationType ? organizationType.toLowerCase() : 'personal', 
-      organizationName, preferredDate, preferredTime, area, expectedDonors, venueAvailable, message
+      organizationName, preferredDate, preferredTime, area, state, city, address, pincode, expectedDonors, venueAvailable, message
     });
     await enquiry.save();
 
@@ -69,6 +69,10 @@ router.patch("/:id/approve", verifyToken, async (req, res) => {
     if (!enquiry) return res.status(404).json({ success: false, message: "Enquiry not found" });
     if (enquiry.status !== "pending") return res.status(400).json({ success: false, message: "Enquiry already processed" });
 
+    if (enquiry.bloodBankStatus !== "accepted" || !enquiry.resourcesConfirmed) {
+      return res.status(400).json({ success: false, message: "Enquiry cannot be approved until the assigned Blood Bank accepts and confirms resource availability." });
+    }
+
     enquiry.status = "approved";
     enquiry.approvedAt = new Date();
 
@@ -112,12 +116,50 @@ router.patch("/:id/approve", verifyToken, async (req, res) => {
       enquiry: enquiry._id,
       title: `${enquiry.organizationName || enquiry.organizerName} Blood Drive`,
       date: enquiry.preferredDate || new Date(), // Fallback if TBA
+      time: enquiry.preferredTime || "TBA",
       venue: enquiry.area || "TBA",
       area: enquiry.area || "TBA",
       expectedDonors: enquiry.expectedDonors || "Not specified",
-      status: "upcoming"
+      status: "upcoming",
+      state: enquiry.state || "Maharashtra",
+      city: enquiry.city || "Pune",
+      address: enquiry.address || enquiry.area || "TBA",
+      pincode: enquiry.pincode || "",
     });
     await newCamp.save();
+
+    // Send targeted notification to donors in the camp's state
+    try {
+      const io = req.app.get("socketio");
+      const Notification = (await import("../models/Notification.js")).default;
+      
+      const targetStateNormalized = newCamp.normalizedState || (newCamp.state ? newCamp.state.trim().toLowerCase() : "");
+      
+      const donors = await User.find({
+        role: "donor",
+        $or: [
+          { normalizedState: targetStateNormalized },
+          { state: new RegExp(`^${(newCamp.state || "").trim()}$`, "i") }
+        ]
+      });
+
+      if (donors.length > 0) {
+        const notificationPromises = donors.map(async (donor) => {
+          const notif = await Notification.create({
+            userId: donor._id,
+            type: "camp_approved",
+            message: `New blood donation camp "${newCamp.title}" has been arranged at ${newCamp.venue}, ${newCamp.city}, ${newCamp.state} on ${new Date(newCamp.date).toLocaleDateString("en-IN")}.`,
+            isRead: false
+          });
+          if (io) {
+            io.to(donor._id.toString()).emit("new_notification", notif);
+          }
+        });
+        await Promise.all(notificationPromises);
+      }
+    } catch (notifErr) {
+      console.error("Error creating camp notifications:", notifErr);
+    }
 
     // Also save in legacy Organizer collection
     const { default: Organizer } = await import("../models/Organizer.js");

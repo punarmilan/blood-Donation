@@ -1,8 +1,20 @@
 import axios from "axios";
 
 export const getStories = async (activeOnly = false) => {
-  const url = activeOnly ? "/api/success-stories?active=true" : "/api/success-stories";
-  const res = await axios.get(url);
+  const savedLoc = localStorage.getItem("detected_location");
+  let query = "";
+  if (savedLoc) {
+    try {
+      const { country, state, city } = JSON.parse(savedLoc);
+      query = `?country=${encodeURIComponent(country || "")}&state=${encodeURIComponent(state || "")}&city=${encodeURIComponent(city || "")}`;
+    } catch (e) {
+      console.error("Error parsing location for success stories", e);
+    }
+  }
+  
+  // Localized success-stories endpoint
+  const prefix = query ? `&` : `?`;
+  const res = await axios.get(`/api/public/success-stories${query}${activeOnly ? `${prefix}active=true` : ""}`);
   return res.data;
 };
 

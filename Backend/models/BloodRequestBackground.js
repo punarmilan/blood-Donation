@@ -15,6 +15,11 @@ const bloodRequestBackgroundSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    country: { type: String, trim: true, default: "" },
+    state: { type: String, trim: true, default: "" },
+    city: { type: String, trim: true, default: "" },
+    isGlobal: { type: Boolean, default: false },
+    priority: { type: Number, default: 0 },
     uploadedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Admin",

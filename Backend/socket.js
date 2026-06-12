@@ -41,7 +41,9 @@ export const initSocket = (server) => {
 
 export const getIo = () => {
   if (!io) {
-    throw new Error("Socket.io not initialized!");
+    console.warn("Socket.io not initialized — skipping real-time emit");
+    return null;
   }
   return io;
 };
+

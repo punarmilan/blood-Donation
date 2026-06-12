@@ -5,6 +5,12 @@ const SuccessStoriesAdmin = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   
+  // Filtering States
+  const [filterCountry, setFilterCountry] = useState("");
+  const [filterState, setFilterState] = useState("");
+  const [filterCity, setFilterCity] = useState("");
+  const [filterGlobalOnly, setFilterGlobalOnly] = useState("all");
+
   // Form State
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
@@ -16,6 +22,11 @@ const SuccessStoriesAdmin = () => {
     image: "",
     isActive: true,
     displayOrder: 0,
+    country: "India",
+    state: "Maharashtra",
+    city: "",
+    isGlobal: false,
+    priority: 0,
   });
   const [uploading, setUploading] = useState(false);
 
@@ -43,7 +54,7 @@ const SuccessStoriesAdmin = () => {
     setFormData((prev) => {
       const newData = {
         ...prev,
-        [name]: type === "checkbox" ? checked : value,
+        [name]: type === "checkbox" ? checked : (name === "priority" || name === "displayOrder" ? Number(value) : value),
       };
 
       // Auto-generate initials if name changes
@@ -112,6 +123,11 @@ const SuccessStoriesAdmin = () => {
       image: item.image || "",
       isActive: item.isActive,
       displayOrder: item.displayOrder || 0,
+      country: item.country || "India",
+      state: item.state || "Maharashtra",
+      city: item.city || "",
+      isGlobal: item.isGlobal || false,
+      priority: item.priority || 0,
     });
     setShowForm(true);
   };
@@ -147,8 +163,22 @@ const SuccessStoriesAdmin = () => {
       image: "",
       isActive: true,
       displayOrder: 0,
+      country: "India",
+      state: "Maharashtra",
+      city: "",
+      isGlobal: false,
+      priority: 0,
     });
   };
+
+  const filteredItems = items.filter((item) => {
+    if (filterGlobalOnly === "global" && !item.isGlobal) return false;
+    if (filterGlobalOnly === "local" && item.isGlobal) return false;
+    if (filterCountry && !item.country?.toLowerCase().includes(filterCountry.toLowerCase())) return false;
+    if (filterState && !item.state?.toLowerCase().includes(filterState.toLowerCase())) return false;
+    if (filterCity && !item.city?.toLowerCase().includes(filterCity.toLowerCase())) return false;
+    return true;
+  });
 
   return (
     <div className="chart-card">
@@ -199,6 +229,42 @@ const SuccessStoriesAdmin = () => {
                     onChange={handleInputChange}
                   />
                 </div>
+                
+                {/* Location targeting targeting */}
+                <div className="col-md-4">
+                  <label className="form-label fw-bold">Country</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="country"
+                    placeholder="e.g. India"
+                    value={formData.country}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div className="col-md-4">
+                  <label className="form-label fw-bold">State</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="state"
+                    placeholder="e.g. Maharashtra"
+                    value={formData.state}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div className="col-md-4">
+                  <label className="form-label fw-bold">City</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="city"
+                    placeholder="e.g. Pune"
+                    value={formData.city}
+                    onChange={handleInputChange}
+                  />
+                </div>
+
                 <div className="col-md-6">
                   <label className="form-label fw-bold">Designation / Subtitle</label>
                   <input
@@ -210,7 +276,7 @@ const SuccessStoriesAdmin = () => {
                     onChange={handleInputChange}
                   />
                 </div>
-                <div className="col-md-6">
+                <div className="col-md-3">
                   <label className="form-label fw-bold">Display Order</label>
                   <input
                     type="number"
@@ -220,6 +286,17 @@ const SuccessStoriesAdmin = () => {
                     onChange={handleInputChange}
                   />
                 </div>
+                <div className="col-md-3">
+                  <label className="form-label fw-bold">Priority (Targeting)</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    name="priority"
+                    value={formData.priority}
+                    onChange={handleInputChange}
+                  />
+                </div>
+
                 <div className="col-md-12">
                   <label className="form-label fw-bold">Review / Testimonial *</label>
                   <textarea
@@ -278,7 +355,22 @@ const SuccessStoriesAdmin = () => {
                     </label>
                   </div>
                 </div>
-                <div className="col-md-6 mt-4 text-end">
+                <div className="col-md-6 d-flex align-items-center mt-4">
+                  <div className="form-check form-switch">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      id="isGlobalSwitch"
+                      name="isGlobal"
+                      checked={formData.isGlobal}
+                      onChange={handleInputChange}
+                    />
+                    <label className="form-check-label fw-bold ms-2" htmlFor="isGlobalSwitch">
+                      Is Global?
+                    </label>
+                  </div>
+                </div>
+                <div className="col-md-12 mt-4 text-end">
                   <button type="button" className="btn btn-secondary me-2" onClick={() => setShowForm(false)}>
                     Cancel
                   </button>
@@ -294,24 +386,70 @@ const SuccessStoriesAdmin = () => {
 
       {!showForm && (
         <div className="custom-table-container">
+          {/* Location Filters */}
+          <div className="row g-2 mb-4 p-3 border rounded bg-light">
+            <div className="col-md-3">
+              <label className="form-label text-muted small fw-bold">Filter Country</label>
+              <input
+                type="text"
+                className="form-control form-control-sm"
+                placeholder="e.g. India"
+                value={filterCountry}
+                onChange={(e) => setFilterCountry(e.target.value)}
+              />
+            </div>
+            <div className="col-md-3">
+              <label className="form-label text-muted small fw-bold">Filter State</label>
+              <input
+                type="text"
+                className="form-control form-control-sm"
+                placeholder="e.g. Maharashtra"
+                value={filterState}
+                onChange={(e) => setFilterState(e.target.value)}
+              />
+            </div>
+            <div className="col-md-3">
+              <label className="form-label text-muted small fw-bold">Filter City</label>
+              <input
+                type="text"
+                className="form-control form-control-sm"
+                placeholder="e.g. Pune"
+                value={filterCity}
+                onChange={(e) => setFilterCity(e.target.value)}
+              />
+            </div>
+            <div className="col-md-3">
+              <label className="form-label text-muted small fw-bold">Personalization Scope</label>
+              <select
+                className="form-select form-select-sm"
+                value={filterGlobalOnly}
+                onChange={(e) => setFilterGlobalOnly(e.target.value)}
+              >
+                <option value="all">All Content</option>
+                <option value="global">Global Only</option>
+                <option value="local">Personalized Only</option>
+              </select>
+            </div>
+          </div>
+
           {loading ? (
             <p className="text-center py-4 text-muted">Loading stories...</p>
-          ) : items.length === 0 ? (
-            <p className="text-center py-4 text-muted">No success stories found. Add your first story.</p>
+          ) : filteredItems.length === 0 ? (
+            <p className="text-center py-4 text-muted">No success stories matching filters found.</p>
           ) : (
             <table className="premium-table">
               <thead>
                 <tr>
                   <th>Profile</th>
                   <th>Name & Subtitle</th>
-                  <th>Review</th>
-                  <th>Order</th>
+                  <th>Target Location</th>
+                  <th>Priority</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => (
+                {filteredItems.map((item) => (
                   <tr key={item._id}>
                     <td>
                       {item.image ? (
@@ -327,11 +465,17 @@ const SuccessStoriesAdmin = () => {
                       <span className="text-muted small">{item.subtitle}</span>
                     </td>
                     <td>
-                      <div style={{ maxWidth: "250px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {item.review}
-                      </div>
+                      {item.isGlobal ? (
+                        <span className="badge bg-primary">Global</span>
+                      ) : (
+                        <span className="small text-muted font-monospace">
+                          📍 {item.city || "(Any City)"}, {item.state || "(Any State)"}, {item.country || "(Any Country)"}
+                        </span>
+                      )}
                     </td>
-                    <td>{item.displayOrder}</td>
+                    <td>
+                      <span className="badge bg-light text-dark border">{item.priority}</span>
+                    </td>
                     <td>
                       <button 
                         className={`btn btn-sm ${item.isActive ? "btn-success" : "btn-secondary"} rounded-pill`}

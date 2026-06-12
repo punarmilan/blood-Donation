@@ -31,40 +31,34 @@ const BloodBankSchema = new mongoose.Schema(
       unique: true,
       trim: true,
     },
-    address: {
-      type: String,
-      required: true,
-      trim: true,
-    },
     city: {
       type: String,
       required: true,
       trim: true,
     },
-    state: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    pincode: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    emergencyContact: {
-      type: String,
-      trim: true,
-    },
-    openingTime: {
-      type: String,
-    },
-    closingTime: {
-      type: String,
-    },
-    available24x7: {
-      type: Boolean,
-      default: false,
-    },
+
+    // Invite token (security)
+    inviteToken: { type: String },          // SHA-256 hashed
+    inviteTokenExpiresAt: { type: Date },   // now + 7 days
+    inviteTokenUsed: { type: Boolean, default: false },
+    invitedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    invitedAt: { type: Date },
+
+    // From registration form (blood bank fills)
+    address: { type: String },
+    state: { type: String },
+    pincode: { type: String },
+    latitude: { type: Number },
+    longitude: { type: Number },
+    emergencyContact: { type: String },
+    is24x7: { type: Boolean, default: false },
+    openTime: { type: String },             // "09:00"
+    closeTime: { type: String },            // "20:00"
+    licenseExpiryDate: { type: Date },
+    licenseDocumentUrl: { type: String },   // uploaded file path
+    registeredAt: { type: Date },
+
+    // Legacy support fields
     location: {
       type: {
         type: String,
@@ -76,59 +70,86 @@ const BloodBankSchema = new mongoose.Schema(
         default: [0, 0],
       },
     },
-    licenseDocumentUrl: {
-      type: String,
-      required: true,
-    },
     role: {
       type: String,
       default: "bloodbank",
     },
+
+    // Admin verification
     status: {
       type: String,
-      enum: ["pending", "approved", "rejected", "blocked"],
-      default: "pending",
+      enum: ['invited','pending','approved','rejected','active','suspended','blocked'],
+      default: 'invited'
     },
-    isVerified: {
-      type: Boolean,
-      default: false,
-    },
-    password: {
-      type: String,
-      default: null,
-    },
-    passwordSetupToken: {
-      type: String,
-    },
-    passwordSetupTokenExpires: {
-      type: Date,
-    },
-    rejectionReason: {
-      type: String,
-    },
-    approvedAt: {
-      type: Date,
-    },
-    rejectedAt: {
-      type: Date,
-    },
-    approvedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Admin",
-    },
-    rejectedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Admin",
-    },
+    verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    verifiedAt: { type: Date },
+    rejectionReason: { type: String },
+    rejectionCount: { type: Number, default: 0 },
+
+    // Password setup token
+    passwordToken: { type: String },        // SHA-256 hashed
+    passwordTokenExpiresAt: { type: Date }, // now + 24 hours
+    password: { type: String },             // bcrypt hashed
+    passwordSetAt: { type: Date },
+
+    // Audit
+    statusHistory: [{
+      status: String,
+      action: String,
+      note: String,
+      updatedBy: String,
+      updatedAt: { type: Date, default: Date.now }
+    }],
+
     inventory: {
-      "A+": { type: Number, default: 0 },
-      "A-": { type: Number, default: 0 },
-      "B+": { type: Number, default: 0 },
-      "B-": { type: Number, default: 0 },
-      "O+": { type: Number, default: 0 },
-      "O-": { type: Number, default: 0 },
-      "AB+": { type: Number, default: 0 },
-      "AB-": { type: Number, default: 0 },
+      "A+": {
+        wholeBlood: { type: Number, default: 0 },
+        redCells: { type: Number, default: 0 },
+        platelets: { type: Number, default: 0 },
+        plasma: { type: Number, default: 0 },
+      },
+      "A-": {
+        wholeBlood: { type: Number, default: 0 },
+        redCells: { type: Number, default: 0 },
+        platelets: { type: Number, default: 0 },
+        plasma: { type: Number, default: 0 },
+      },
+      "B+": {
+        wholeBlood: { type: Number, default: 0 },
+        redCells: { type: Number, default: 0 },
+        platelets: { type: Number, default: 0 },
+        plasma: { type: Number, default: 0 },
+      },
+      "B-": {
+        wholeBlood: { type: Number, default: 0 },
+        redCells: { type: Number, default: 0 },
+        platelets: { type: Number, default: 0 },
+        plasma: { type: Number, default: 0 },
+      },
+      "O+": {
+        wholeBlood: { type: Number, default: 0 },
+        redCells: { type: Number, default: 0 },
+        platelets: { type: Number, default: 0 },
+        plasma: { type: Number, default: 0 },
+      },
+      "O-": {
+        wholeBlood: { type: Number, default: 0 },
+        redCells: { type: Number, default: 0 },
+        platelets: { type: Number, default: 0 },
+        plasma: { type: Number, default: 0 },
+      },
+      "AB+": {
+        wholeBlood: { type: Number, default: 0 },
+        redCells: { type: Number, default: 0 },
+        platelets: { type: Number, default: 0 },
+        plasma: { type: Number, default: 0 },
+      },
+      "AB-": {
+        wholeBlood: { type: Number, default: 0 },
+        redCells: { type: Number, default: 0 },
+        platelets: { type: Number, default: 0 },
+        plasma: { type: Number, default: 0 },
+      },
     },
     lastInventoryUpdated: {
       type: Date,

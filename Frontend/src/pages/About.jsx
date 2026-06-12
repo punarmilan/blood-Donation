@@ -13,19 +13,54 @@ const About = () => {
   const heroRef = useRef(null);
   const [galleryItems, setGalleryItems] = useState([]);
   const [activeFilter, setActiveFilter] = useState("All");
+  const [stats, setStats] = useState({
+    livesSaved: 0,
+    unitsDonated: 0,
+    bloodBanks: 0,
+    camps: 0
+  });
 
   useEffect(() => {
-    const fetchGallery = async () => {
+    const fetchStats = async () => {
       try {
-        const data = await getGalleryImages();
+        const res = await fetch("/api/public/stats");
+        const data = await res.json();
         if (data && data.success) {
-          setGalleryItems(data.data);
+          setStats({
+            livesSaved: data.stats.livesSaved || 0,
+            unitsDonated: data.stats.unitsDonated || 0,
+            bloodBanks: data.stats.bloodBanks || 0,
+            camps: data.stats.camps || 0
+          });
         }
       } catch (err) {
-        console.error("Failed to load gallery items", err);
+        console.error("Failed to fetch stats", err);
       }
     };
+    fetchStats();
+  }, []);
+
+  const fetchGallery = async () => {
+    try {
+      const data = await getGalleryImages();
+      if (data && data.success) {
+        setGalleryItems(data.data);
+      }
+    } catch (err) {
+      console.error("Failed to load gallery items", err);
+    }
+  };
+
+  useEffect(() => {
     fetchGallery();
+
+    const handleLocationChange = () => {
+      fetchGallery();
+    };
+    window.addEventListener("locationChanged", handleLocationChange);
+    return () => {
+      window.removeEventListener("locationChanged", handleLocationChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -459,27 +494,178 @@ const About = () => {
         }
 
         @media (max-width: 768px) {
-          .join-banner-overlay {
-            padding: 20px;
-            align-items: center;
-            text-align: center;
+          .join-banner-container {
+            flex-direction: column !important;
+            display: flex !important;
+            max-width: 360px !important;
+            margin: 30px auto 0 !important;
+            background: linear-gradient(135deg, #0e0505 0%, #050202 100%) !important;
+            border: 1px solid rgba(225, 29, 72, 0.25) !important;
+            border-radius: 18px !important;
+            overflow: hidden !important;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.6), 0 0 15px rgba(225,29,72,0.15) !important;
+            position: relative !important;
           }
-          .join-banner-title {
-            font-size: 1.6rem;
+          .join-banner-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 160px;
+            background: linear-gradient(to bottom, rgba(0,0,0,0) 50%, #050202 100%) !important;
+            z-index: 1;
+            pointer-events: none;
           }
           .join-banner-img {
-            min-height: 280px;
+            position: relative !important;
+            width: 100% !important;
+            height: 172px !important;
+            margin-top: -12px !important;
+            object-fit: cover !important;
+            object-position: 25% center !important;
+            min-height: auto !important;
+            display: block !important;
+          }
+          .join-banner-overlay {
+            position: relative !important;
+            inset: auto !important;
+            padding: 24px 20px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            justify-content: flex-start !important;
+            text-align: left !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+            background: transparent !important;
+          }
+          .join-banner-content {
+            margin: 0 !important;
+            max-width: 100% !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: flex-start !important;
+          }
+          .join-banner-title {
+            font-size: 1.35rem !important;
+            font-weight: 800 !important;
+            color: #ffffff !important;
+            margin-bottom: 8px !important;
+            text-align: left !important;
+            text-shadow: none !important;
+            letter-spacing: normal !important;
+          }
+          .join-banner-desc {
+            font-size: 0.88rem !important;
+            color: #9ca3af !important;
+            margin-bottom: 20px !important;
+            text-align: left !important;
+            text-shadow: none !important;
+            line-height: 1.5 !important;
+          }
+          .join-btn {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            height: 40px !important;
+            padding: 0 24px !important;
+            border-radius: 20px !important;
+            font-weight: 700 !important;
+            font-size: 0.88rem !important;
+            background: linear-gradient(135deg, #e11d48, #be123c) !important;
+            box-shadow: 0 4px 15px rgba(225, 29, 72, 0.3) !important;
+            color: #ffffff !important;
+            width: auto !important;
           }
         }
 
         @media (max-width: 768px) {
           .about-hero {
-            flex-direction: column;
-            text-align: center;
-            padding-top: 40px;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: flex-start !important;
+            text-align: center !important;
+            min-height: auto !important;
+            padding: 0 !important;
+            max-width: 450px !important;
+            margin: 0 auto !important;
+            background: #000000 !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            border-radius: 18px !important;
+            overflow: hidden !important;
+          }
+          .about-hero-bg {
+            position: relative !important;
+            width: 100% !important;
+            height: 260px !important;
+            background: url('${aboutHeroImg}') no-repeat right center !important;
+            background-size: cover !important;
+            z-index: 1 !important;
           }
           .about-hero-content {
-            text-align: center;
+            padding: 28px 24px !important;
+            text-align: center !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+            z-index: 2 !important;
+            margin: 0 !important;
+          }
+          .about-subtitle {
+            color: #e11d48 !important;
+            font-weight: 800 !important;
+            font-size: 0.95rem !important;
+            letter-spacing: 0.15em !important;
+            text-transform: uppercase !important;
+            margin-bottom: 8px !important;
+            display: inline-block !important;
+          }
+          .about-title {
+            font-size: 2.1rem !important;
+            font-weight: 900 !important;
+            color: #ffffff !important;
+            margin-bottom: 16px !important;
+            display: block !important;
+          }
+          .about-title span {
+            color: #e11d48 !important;
+          }
+          .about-description {
+            font-size: 1rem !important;
+            color: #9ca3af !important;
+            line-height: 1.5 !important;
+            margin-bottom: 0 !important;
+          }
+          .about-hero-spacer {
+            display: none !important;
+          }
+
+          /* Stats Row Mobile Responsiveness */
+          .stats-row {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 16px !important;
+            padding: 18px 14px !important;
+            max-width: 450px !important;
+            margin: 0 auto !important;
+            border-radius: 14px !important;
+          }
+          .stat-item {
+            gap: 12px !important;
+          }
+          .stat-icon-wrap {
+            width: 42px !important;
+            height: 42px !important;
+            flex-shrink: 0 !important;
+          }
+          .stat-icon-wrap svg {
+            width: 18px !important;
+            height: 18px !important;
+          }
+          .stat-value {
+            font-size: 1.25rem !important;
+          }
+          .stat-label {
+            font-size: 0.72rem !important;
           }
         }
 
@@ -755,7 +941,7 @@ const About = () => {
               <Users size={24} />
             </div>
             <div className="stat-info">
-              <span className="stat-value">1M+</span>
+              <span className="stat-value">{stats.livesSaved.toLocaleString()}+</span>
               <span className="stat-label">Lives Saved</span>
             </div>
           </div>
@@ -765,7 +951,7 @@ const About = () => {
               <Heart size={24} />
             </div>
             <div className="stat-info">
-              <span className="stat-value">2.5M+</span>
+              <span className="stat-value">{stats.unitsDonated.toLocaleString()}+</span>
               <span className="stat-label">Units Donated</span>
             </div>
           </div>
@@ -775,7 +961,7 @@ const About = () => {
               <Building size={24} />
             </div>
             <div className="stat-info">
-              <span className="stat-value">2500+</span>
+              <span className="stat-value">{stats.bloodBanks.toLocaleString()}+</span>
               <span className="stat-label">Blood Banks</span>
             </div>
           </div>
@@ -785,7 +971,7 @@ const About = () => {
               <Handshake size={24} />
             </div>
             <div className="stat-info">
-              <span className="stat-value">850+</span>
+              <span className="stat-value">{stats.camps.toLocaleString()}+</span>
               <span className="stat-label">Camps Organized</span>
             </div>
           </div>
@@ -998,10 +1184,6 @@ const About = () => {
                 {filter.icon} {filter.name}
               </button>
             ))}
-          </div>
-
-          <div className="impact-action">
-            <button className="view-gallery-btn">View Full Gallery &rarr;</button>
           </div>
         </section>
 

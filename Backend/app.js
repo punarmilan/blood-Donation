@@ -26,8 +26,16 @@ import notificationRoutes from "./routes/notificationRoutes.js";
 import waRoutes from "./routes/waRoutes.js";
 import publicRoutes from "./routes/publicRoutes.js";
 import bloodRequestBackgroundRoutes from "./routes/bloodRequestBackgroundRoutes.js";
+import locationRoutes from "./routes/locationRoutes.js";
 import bloodBankRoutes from "./routes/bloodBankRoutes.js";
+import bloodBankAuthRoutes from "./routes/bloodBankAuthRoutes.js";
 import donorHealthRoutes from "./routes/donorHealthRoutes.js";
+import healthRoutes from "./routes/healthRoutes.js";
+import bloodUnitRoutes from "./routes/bloodUnitRoutes.js";
+import inventoryRoutes from "./routes/inventoryRoutes.js";
+import requestFlowRoutes from "./routes/requestFlowRoutes.js";
+import expiryChecker from "./cron/expiryChecker.js";
+import licenseChecker from "./cron/licenseChecker.js";
 
 const app = express();
 app.set("trust proxy", 1); // Trust reverse proxy to get correct protocol (https)
@@ -150,13 +158,22 @@ app.use("/api/impact-gallery", impactGalleryRoutes);
 app.use("/api/news", newsRoutes);
 app.use("/api/success-stories", successStoryRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/users", authRoutes);
+app.use("/api", authRoutes);
 app.use("/api/request", requestRoutes);
+app.use("/api/blood-requests", requestRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/wa", waRoutes);
 app.use("/api/public", publicRoutes);
 app.use("/api/blood-request-background", bloodRequestBackgroundRoutes);
 app.use("/api/blood-banks", bloodBankRoutes);
+app.use("/api/blood-bank", bloodBankAuthRoutes);
 app.use("/api/donor/health", donorHealthRoutes);
+app.use("/api/health", healthRoutes);
+app.use("/api/location", locationRoutes);
+app.use("/api/blood-units", bloodUnitRoutes);
+app.use("/api/inventory", inventoryRoutes);
+app.use("/api/request-flow", requestFlowRoutes);
 
 // SERVE FRONTEND IN PRODUCTION (Hostinger Ready)
 const frontendPath = path.join(__dirname, "../Frontend/dist");

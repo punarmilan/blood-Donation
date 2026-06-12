@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Heart, RefreshCw, Users, Star, Shield } from "lucide-react";
+import { Heart, RefreshCw, Users, Star, Shield, Clock } from "lucide-react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import api from "../services/api";
+import { getLiveBloodRequests } from "../services/requestService";
+import { useAuth } from "../context/AuthContext";
 
 // Register ScrollTrigger plugin
 gsap.registerPlugin(ScrollTrigger);
@@ -45,59 +47,128 @@ const bloodAvailability = [
   { group: "O-", type: "Negative", status: "Critical", statusColor: "status-critical", units: "8 Units" },
 ];
 
+const formatTimeAgo = (dateString) => {
+  if (!dateString) return "Some time ago";
+  const diffMs = Date.now() - new Date(dateString).getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return "Just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHrs = Math.floor(diffMin / 60);
+  if (diffHrs < 24) return `${diffHrs}h ago`;
+  const diffDays = Math.floor(diffHrs / 24);
+  return `${diffDays}d ago`;
+};
 export default function WhyDonateSection() {
   const sectionRef = useRef(null);
   const navigate = useNavigate();
   const [upcomingCamps, setUpcomingCamps] = useState([]);
-  const [bloodRequests, setBloodRequests] = useState([
-    { group: "O+", hospital: "Ruby Hospital, Pune", units: "2 Units", urgency: "Urgent", urgencyColor: "urgency-urgent" },
-    { group: "B-", hospital: "City Care Hospital, Mumbai", units: "1 Unit", urgency: "Urgent", urgencyColor: "urgency-urgent" },
-    { group: "A+", hospital: "Fortis Hospital, Bengaluru", units: "3 Units", urgency: "Medium", urgencyColor: "urgency-medium" },
-  ]);
+  const [bloodRequests, setBloodRequests] = useState([]);
+  const { currentUser } = useAuth();
+  
+  const [activeCard, setActiveCard] = useState(0);
+  const cardsRef = useRef(null);
+
+  const handleCardsScroll = () => {
+    if (!cardsRef.current) return;
+    const scrollLeft = cardsRef.current.scrollLeft;
+    // card width is 250px + 16px gap = 266px
+    const cardWidth = 266;
+    const index = Math.round(scrollLeft / cardWidth);
+    setActiveCard(Math.max(0, Math.min(whyDonateItems.length - 1, index)));
+  };
+
+  const isDown = useRef(false);
+  const startX = useRef(0);
+  const scrollLeftVal = useRef(0);
+
+  const handleMouseDown = (e) => {
+    isDown.current = true;
+    startX.current = e.pageX - cardsRef.current.offsetLeft;
+    scrollLeftVal.current = cardsRef.current.scrollLeft;
+    cardsRef.current.style.cursor = 'grabbing';
+    cardsRef.current.style.scrollBehavior = 'auto';
+  };
+
+  const handleMouseLeave = () => {
+    isDown.current = false;
+    if (cardsRef.current) {
+      cardsRef.current.style.cursor = 'grab';
+    }
+  };
+
+  const handleMouseUp = () => {
+    isDown.current = false;
+    if (cardsRef.current) {
+      cardsRef.current.style.cursor = 'grab';
+      cardsRef.current.style.scrollBehavior = '';
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDown.current || !cardsRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - cardsRef.current.offsetLeft;
+    const walk = (x - startX.current) * 1.5; // Scroll speed multiplier
+    cardsRef.current.scrollLeft = scrollLeftVal.current - walk;
+  };
+
+  const fetchActiveRequests = async () => {
+    try {
+      let stateName = "Maharashtra";
+      if (currentUser && currentUser.state) {
+        stateName = currentUser.state;
+      } else {
+        const savedLoc = localStorage.getItem("detected_location");
+        if (savedLoc) {
+          try {
+            const loc = JSON.parse(savedLoc);
+            if (loc.state) stateName = loc.state;
+          } catch (e) {
+            console.error("Error parsing detected location in WhyDonateSection", e);
+          }
+        }
+      }
+
+      const res = await getLiveBloodRequests(stateName);
+      if (res && res.success && res.data) {
+        setBloodRequests(res.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch live blood requests", err);
+    }
+  };
 
   useEffect(() => {
-    const fetchActiveRequests = async () => {
-      try {
-        const res = await api.get("/request/active");
-        if (res.data && res.data.data) {
-          const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-          
-          // Filter out requests older than 24 hours and sort by newest
-          const recentRequests = res.data.data
-            .filter(req => new Date(req.createdAt) >= twentyFourHoursAgo)
-            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-          const formatted = recentRequests.map(req => {
-            const urgencyMap = {
-              "emergency": "Urgent",
-              "urgent": "Urgent",
-              "planned": "Medium"
-            };
-            const colorMap = {
-              "emergency": "urgency-urgent",
-              "urgent": "urgency-urgent",
-              "planned": "urgency-medium"
-            };
-            const urgency = (req.urgency || "emergency").toLowerCase();
-            return {
-              group: req.bloodGroup,
-              hospital: `${req.hospital}, ${req.city}`,
-              units: `${req.units} Unit${req.units > 1 ? 's' : ''}`,
-              urgency: urgencyMap[urgency] || "Urgent",
-              urgencyColor: colorMap[urgency] || "urgency-urgent"
-            };
-          });
-          
-          // Always set the state so that old hardcoded placeholders are removed
-          setBloodRequests(formatted);
-        }
-      } catch (err) {
-        console.error("Failed to fetch live blood requests", err);
-      }
+    fetchActiveRequests();
+    
+    const handleLocationChange = () => {
+      fetchActiveRequests();
     };
+    window.addEventListener("locationChanged", handleLocationChange);
+    return () => {
+      window.removeEventListener("locationChanged", handleLocationChange);
+    };
+  }, [currentUser?.state]);
+
+  useEffect(() => {
     const fetchUpcomingCamps = async () => {
       try {
-        const res = await api.get("/public/camps");
+        let stateName = "Maharashtra";
+        if (currentUser && currentUser.state) {
+          stateName = currentUser.state;
+        } else {
+          const savedLoc = localStorage.getItem("detected_location");
+          if (savedLoc) {
+            try {
+              const loc = JSON.parse(savedLoc);
+              if (loc.state) stateName = loc.state;
+            } catch (e) {
+              console.error("Error parsing location for camps:", e);
+            }
+          }
+        }
+
+        const res = await api.get(`/public/camps?state=${encodeURIComponent(stateName)}`);
         if (res.data && res.data.data) {
           const formattedCamps = res.data.data.map(camp => {
             const d = new Date(camp.date);
@@ -106,8 +177,8 @@ export default function WhyDonateSection() {
               day: d.getDate().toString().padStart(2, '0'),
               month: d.toLocaleString('default', { month: 'short' }).toUpperCase(),
               name: camp.title,
-              location: `${camp.venue}, ${camp.city}`,
-              time: `${camp.startTime} – ${camp.endTime}`
+              location: `${camp.venue || camp.location || 'TBA'}, ${camp.city || 'TBA'}`,
+              time: `${camp.startTime || 'TBA'} – ${camp.endTime || 'TBA'}`
             };
           });
           setUpcomingCamps(formattedCamps);
@@ -116,9 +187,17 @@ export default function WhyDonateSection() {
         console.error("Failed to fetch upcoming camps", err);
       }
     };
-    fetchActiveRequests();
+    
     fetchUpcomingCamps();
-  }, []);
+    
+    const handleLocationChange = () => {
+      fetchUpcomingCamps();
+    };
+    window.addEventListener("locationChanged", handleLocationChange);
+    return () => {
+      window.removeEventListener("locationChanged", handleLocationChange);
+    };
+  }, [currentUser?.state]);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -603,6 +682,157 @@ export default function WhyDonateSection() {
           text-shadow: 0 0 8px rgba(248, 113, 113, 0.3);
           animation: pulseRed textPulse 2s infinite ease-in-out;
         }
+
+        .why-donate-dots {
+          display: none;
+        }
+
+        @media (max-width: 640px) {
+          .list-item {
+            padding: 10px !important;
+            gap: 10px !important;
+          }
+          .group-badge, .date-badge {
+            width: 38px !important;
+            height: 38px !important;
+            font-size: 0.8rem !important;
+          }
+          .date-badge-day {
+            font-size: 0.9rem !important;
+          }
+          .date-badge-month {
+            font-size: 0.5rem !important;
+          }
+          .item-title-top {
+            font-size: 0.75rem !important;
+          }
+          .item-subtitle-sub {
+            font-size: 0.68rem !important;
+          }
+          .premium-btn-register {
+            padding: 4px 8px !important;
+            font-size: 0.65rem !important;
+          }
+          .item-value {
+            font-size: 0.75rem !important;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .why-donate-section {
+            padding: 45px 0 !important;
+            overflow: hidden !important;
+          }
+
+          .why-donate-title {
+            text-align: center !important;
+            font-size: 22px !important;
+            letter-spacing: 2px !important;
+          }
+
+          .why-donate-heart {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 14px !important;
+            margin: 14px 0 26px !important;
+            color: #ff2d5f !important;
+            animation: none !important;
+          }
+
+          .why-donate-heart::before,
+          .why-donate-heart::after {
+            content: "" !important;
+            width: 45px !important;
+            height: 1px !important;
+            background: rgba(255, 45, 95, 0.6) !important;
+          }
+
+          /* Slider row */
+          .why-donate-cards {
+            display: flex !important;
+            grid-template-columns: none !important;
+            gap: 16px !important;
+            overflow-x: auto !important;
+            scroll-snap-type: x mandatory !important;
+            padding: 20px 60px !important;
+            scroll-padding-left: 60px !important;
+          }
+
+          .why-donate-cards::-webkit-scrollbar {
+            display: none !important;
+          }
+
+          /* Card layout override */
+          .why-donate-card {
+            flex: 0 0 250px !important;
+            height: 280px !important;
+            scroll-snap-align: center !important;
+            border-radius: 18px !important;
+            background: rgba(18, 18, 18, 0.7) !important;
+            border: 1px solid rgba(255, 255, 255, 0.09) !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            text-align: center !important;
+            padding: 28px 22px !important;
+            backdrop-filter: blur(10px) !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+            transform: none !important;
+          }
+
+          /* Red/pink glow around icon */
+          .why-donate-card .icon {
+            width: 80px !important;
+            height: 80px !important;
+            border-radius: 50% !important;
+            border: 1.5px solid #ff2d5f !important;
+            background: radial-gradient(circle, rgba(255, 45, 95, 0.1) 0%, rgba(255, 45, 95, 0.25) 100%) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            margin-bottom: 22px !important;
+            box-shadow: 0 0 25px rgba(255, 45, 95, 0.4) !important;
+          }
+
+          .why-donate-card .icon svg {
+            color: #ff2d5f !important;
+            filter: drop-shadow(0 0 5px rgba(255, 45, 95, 0.8)) !important;
+          }
+
+          .why-donate-card h3 {
+            font-size: 18px !important;
+            margin-bottom: 12px !important;
+            color: #ffffff !important;
+          }
+
+          .why-donate-card p {
+            font-size: 14px !important;
+            line-height: 1.6 !important;
+            color: #b8b8b8 !important;
+          }
+
+          .why-donate-dots {
+            display: flex !important;
+            justify-content: center !important;
+            gap: 8px !important;
+            margin-top: 22px !important;
+          }
+
+          .why-donate-dots span {
+            width: 8px !important;
+            height: 8px !important;
+            background: #666 !important;
+            border-radius: 50% !important;
+            transition: all 0.3s ease !important;
+          }
+
+          .why-donate-dots span.active {
+            background: #ff2d5f !important;
+            box-shadow: 0 0 8px rgba(255, 45, 95, 0.8) !important;
+          }
+        }
       `}</style>
 
       <div className="why-donate-container">
@@ -610,20 +840,35 @@ export default function WhyDonateSection() {
         <h2 className="why-donate-title">
           WHY DONATE <span>BLOOD?</span>
         </h2>
-        <div className="heart-icon-divider">
+        <div className="heart-icon-divider why-donate-heart">
           ♥
         </div>
 
-        {/* 5 Cards Row */}
-        <div className="cards-row">
+        {/* 5 Cards Row / Mobile Slider */}
+        <div 
+          className="cards-row why-donate-cards" 
+          ref={cardsRef} 
+          onScroll={handleCardsScroll}
+          onMouseDown={handleMouseDown}
+          onMouseLeave={handleMouseLeave}
+          onMouseUp={handleMouseUp}
+          onMouseMove={handleMouseMove}
+        >
           {whyDonateItems.map((item, idx) => (
-            <div key={idx} className="premium-card">
-              <div className="premium-icon-wrap">
+            <div key={idx} className="premium-card why-donate-card">
+              <div className="premium-icon-wrap icon">
                 {item.icon}
               </div>
               <h3 className="premium-card-title">{item.title}</h3>
               <p className="premium-card-desc">{item.desc}</p>
             </div>
+          ))}
+        </div>
+
+        {/* Pagination Dots (Only visible on mobile) */}
+        <div className="why-donate-dots">
+          {whyDonateItems.map((_, idx) => (
+            <span key={idx} className={idx === activeCard ? "active" : ""} />
           ))}
         </div>
 
@@ -634,29 +879,48 @@ export default function WhyDonateSection() {
           <div className="premium-widget">
             <div className="widget-header">
               <h3 className="widget-title">Live Blood Requests</h3>
-              <button className="view-all-btn">View All</button>
+              <button className="view-all-btn" onClick={() => navigate("/live-requests")}>View All</button>
             </div>
             <div className="list-container">
               {bloodRequests.length > 0 ? (
                 bloodRequests.map((req, idx) => (
                   <div key={idx} className="list-item">
-                    <div className="group-badge">{req.group}</div>
+                    <div className="group-badge">{req.bloodGroup}</div>
                     <div className="item-details">
-                      <p className="item-title-top">Blood Required</p>
-                      <p className="item-subtitle-sub" title={req.hospital}>{req.hospital}</p>
+                      <p className="item-title-top text-red-500 font-bold">Blood Required</p>
+                      <p className="item-subtitle-sub text-white font-semibold" title={req.hospitalName || req.hospital}>
+                        {req.hospitalName || req.hospital}
+                      </p>
+                      {req.hospitalArea && (
+                        <p className="text-[10px] text-zinc-400 font-medium truncate">
+                          📍 {req.hospitalArea}
+                        </p>
+                      )}
+                      <p className="text-[10px] text-zinc-500 mt-0.5">
+                        {req.city}, {req.state}
+                      </p>
                     </div>
-                    <div className="item-extra">
-                      <span className="item-value">+{req.units}</span>
-                      <span className={`urgency-badge ${req.urgencyColor}`}>
+                    <div className="item-extra shrink-0 flex flex-col items-end">
+                      <span className="item-value text-white font-bold">
+                        {req.unitsNeeded || req.units} Unit{(req.unitsNeeded || req.units) > 1 ? "s" : ""}
+                      </span>
+                      <span className={`urgency-badge text-[9px] px-2 py-0.5 mt-1 font-bold rounded ${
+                        (req.urgency || "").toLowerCase() === "urgent" || (req.urgency || "").toLowerCase() === "emergency"
+                          ? "urgency-urgent"
+                          : "urgency-medium"
+                      }`}>
                         {req.urgency}
+                      </span>
+                      <span className="text-[8px] text-zinc-500 mt-1 font-semibold flex items-center gap-0.5">
+                        <Clock size={8} /> {formatTimeAgo(req.createdAt)}
                       </span>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="flex flex-col items-center justify-center py-6 text-center">
+                <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed border-zinc-800/40 rounded-xl">
                   <p style={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "0.85rem" }}>
-                    No active blood requests in the last 24 hours.
+                    No live blood requests found in your state.
                   </p>
                 </div>
               )}

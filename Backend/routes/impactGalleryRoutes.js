@@ -45,7 +45,15 @@ router.post("/upload", upload.single("file"), (req, res) => {
 // 2. Get All Items
 router.get("/", async (req, res) => {
   try {
-    const items = await ImpactGallery.find().sort({ displayOrder: 1, createdAt: -1 });
+    const { country, state, city, isGlobal, isActive } = req.query;
+    const filter = {};
+    if (country) filter.country = new RegExp(country.trim(), "i");
+    if (state) filter.state = new RegExp(state.trim(), "i");
+    if (city) filter.city = new RegExp(city.trim(), "i");
+    if (isGlobal !== undefined) filter.isGlobal = isGlobal === "true";
+    if (isActive !== undefined) filter.isActive = isActive === "true";
+
+    const items = await ImpactGallery.find(filter).sort({ displayOrder: 1, createdAt: -1 });
     res.json({ success: true, data: items });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -55,7 +63,10 @@ router.get("/", async (req, res) => {
 // 3. Create Item
 router.post("/", async (req, res) => {
   try {
-    const { title, description, location, date, category, mediaType, mediaUrl, featured, displayOrder } = req.body;
+    const { 
+      title, description, location, date, category, mediaType, mediaUrl, featured, displayOrder,
+      country, state, city, isGlobal, isActive, priority
+    } = req.body;
     
     // If setting as featured, optionally un-feature others
     if (featured) {
@@ -72,6 +83,12 @@ router.post("/", async (req, res) => {
       mediaUrl,
       featured: featured || false,
       displayOrder: displayOrder || 0,
+      country: country || "",
+      state: state || "",
+      city: city || "",
+      isGlobal: isGlobal === "true" || isGlobal === true,
+      isActive: isActive !== undefined ? (isActive === "true" || isActive === true) : true,
+      priority: parseInt(priority) || 0,
     });
 
     await newItem.save();

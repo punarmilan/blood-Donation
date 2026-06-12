@@ -60,11 +60,23 @@ const OtpVerify = () => {
     setLoading(false);
 
     if (res.success) {
-      toast.success("Registration successful!");
-      if (state.formData.role === "recipient") {
-        navigate("/blood-request");
+      toast.success(state.formData.isLogin ? "Login successful!" : "Registration successful!");
+      
+      const role = res.user?.role;
+      if (role === "donor") {
+        navigate("/donor/dashboard");
+      } else if (role === "recipient") {
+        if (res.user?.activeRequestId) {
+          navigate(`/request-status/${res.user.activeRequestId}`);
+        } else {
+          navigate("/blood-request");
+        }
+      } else if (role === "admin") {
+        navigate("/admin/dashboard");
+      } else if (role === "bloodBank") {
+        navigate("/blood-bank/profile");
       } else {
-        navigate("/dashboard");
+        navigate("/login");
       }
     } else {
       toast.error(res.message);

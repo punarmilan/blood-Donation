@@ -76,6 +76,10 @@ const AdminEnquiries = () => {
       preferredDate: enquiry.preferredDate ? enquiry.preferredDate.split("T")[0] : "",
       preferredTime: enquiry.preferredTime || "",
       area: enquiry.area,
+      state: enquiry.state || "",
+      city: enquiry.city || "",
+      address: enquiry.address || "",
+      pincode: enquiry.pincode || "",
       expectedDonors: enquiry.expectedDonors || "",
       message: enquiry.message,
     });
@@ -191,9 +195,8 @@ const AdminEnquiries = () => {
             {["pending", "approved", "rejected", "all"].map((t) => (
               <button
                 key={t}
-                className={`btn ${
-                  tab === t ? "btn-danger" : "btn-outline-danger"
-                }`}
+                className={`btn ${tab === t ? "btn-danger" : "btn-outline-danger"
+                  }`}
                 onClick={() => setTab(t)}
               >
                 {t.toUpperCase()}
@@ -223,25 +226,23 @@ const AdminEnquiries = () => {
           {filtered.map((e) => (
             <div className="col-lg-6" key={e._id}>
               <div
-                className={`card h-100 shadow-sm border-${
-                  e.status === "pending"
+                className={`card h-100 shadow-sm border-${e.status === "pending"
                     ? "warning"
                     : e.status === "approved"
-                    ? "success"
-                    : "secondary"
-                }`}
+                      ? "success"
+                      : "secondary"
+                  }`}
               >
                 {/* CARD HEADER */}
                 <div className="card-header bg-transparent d-flex justify-content-between align-items-center">
                   <h5 className="mb-0 text-danger fw-bold">{e.organizationName || e.organizerName + " Camp"}</h5>
                   <span
-                    className={`badge ${
-                      e.status === "pending"
+                    className={`badge ${e.status === "pending"
                         ? "bg-warning text-dark"
                         : e.status === "approved"
-                        ? "bg-success"
-                        : "bg-secondary"
-                    }`}
+                          ? "bg-success"
+                          : "bg-secondary"
+                      }`}
                   >
                     {e.status.toUpperCase()}
                   </span>
@@ -273,6 +274,11 @@ const AdminEnquiries = () => {
                         {e.preferredTime ? ` (${e.preferredTime})` : ""}
                       </div>
                       <div className="small">📍 {e.area}</div>
+                      {(e.state || e.city) && (
+                        <div className="small text-danger fw-bold">
+                          🏢 Location: {e.city || ""}{e.city && e.state ? ", " : ""}{e.state || ""} {e.pincode ? `(${e.pincode})` : ""}
+                        </div>
+                      )}
                       <div className="small">👥 {e.expectedDonors} Donors expected</div>
                       <div className="small text-muted mt-1">Type: {e.organizationType}</div>
                     </div>
@@ -497,15 +503,41 @@ const AdminEnquiries = () => {
                   onChange={handleEditChange}
                 />
               </div>
-              <div className="col-12">
-                <label className="form-label small">Area / Location</label>
-                <textarea
+              <div className="col-md-6">
+                <label className="form-label small">State</label>
+                <input
                   className="form-control"
-                  name="area"
-                  rows="2"
-                  value={editForm.area}
+                  name="state"
+                  value={editForm.state}
                   onChange={handleEditChange}
-                ></textarea>
+                />
+              </div>
+              <div className="col-md-6">
+                <label className="form-label small">City</label>
+                <input
+                  className="form-control"
+                  name="city"
+                  value={editForm.city}
+                  onChange={handleEditChange}
+                />
+              </div>
+              <div className="col-md-8">
+                <label className="form-label small">Address</label>
+                <input
+                  className="form-control"
+                  name="address"
+                  value={editForm.address}
+                  onChange={(ev) => setEditForm(prev => ({ ...prev, address: ev.target.value, area: ev.target.value }))}
+                />
+              </div>
+              <div className="col-md-4">
+                <label className="form-label small">Pincode</label>
+                <input
+                  className="form-control"
+                  name="pincode"
+                  value={editForm.pincode}
+                  onChange={handleEditChange}
+                />
               </div>
               <div className="col-12">
                 <label className="form-label small">Message</label>
@@ -538,3 +570,6 @@ const AdminEnquiries = () => {
 };
 
 export default AdminEnquiries;
+
+// This replaces the legacy openEditModal function too.
+const legacyOpenEditModal = (enquiry) => {}

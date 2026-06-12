@@ -58,7 +58,15 @@ router.get("/", async (req, res) => {
 ====================================================== */
 router.get("/all", verifyToken, async (req, res) => {
   try {
-    const backgrounds = await BloodRequestBackground.find().sort({ createdAt: -1 });
+    const { country, state, city, isGlobal, isActive } = req.query;
+    const filter = {};
+    if (country) filter.country = new RegExp(country.trim(), "i");
+    if (state) filter.state = new RegExp(state.trim(), "i");
+    if (city) filter.city = new RegExp(city.trim(), "i");
+    if (isGlobal !== undefined) filter.isGlobal = isGlobal === "true";
+    if (isActive !== undefined) filter.isActive = isActive === "true";
+
+    const backgrounds = await BloodRequestBackground.find(filter).sort({ createdAt: -1 });
     res.json({ success: true, backgrounds });
   } catch (err) {
     res.status(500).json({ success: false, message: "Error fetching backgrounds", error: err.message });
@@ -74,12 +82,23 @@ router.post("/", verifyToken, upload.single("media"), async (req, res) => {
       return res.status(400).json({ success: false, message: "No file uploaded" });
     }
 
+    const { country, state, city, isGlobal, priority, isActive } = req.body;
     const extname = path.extname(req.file.originalname).toLowerCase();
     const isImage = /jpeg|jpg|png|webp/.test(extname);
     const mediaType = isImage ? "image" : "video";
 
-    // Deactivate all previous backgrounds
-    await BloodRequestBackground.updateMany({}, { isActive: false });
+    const isGlobalBool = isGlobal === "true" || isGlobal === true;
+    const isActiveBool = isActive === "true" || isActive === true;
+
+    // Deactivate previous active backgrounds for the same location
+    if (isActiveBool) {
+      await BloodRequestBackground.updateMany({
+        country: country || "",
+        state: state || "",
+        city: city || "",
+        isGlobal: isGlobalBool
+      }, { isActive: false });
+    }
 
     // Save new background
     const fileUrl = req.file.path;
@@ -87,11 +106,16 @@ router.post("/", verifyToken, upload.single("media"), async (req, res) => {
     const newBackground = await BloodRequestBackground.create({
       mediaUrl: fileUrl,
       mediaType,
-      isActive: true,
+      isActive: isActiveBool,
+      country: country || "",
+      state: state || "",
+      city: city || "",
+      isGlobal: isGlobalBool,
+      priority: parseInt(priority) || 0,
       uploadedBy: req.user ? req.user.id : null
     });
 
-    res.status(201).json({ success: true, message: "Background uploaded and activated successfully", background: newBackground });
+    res.status(201).json({ success: true, message: "Background uploaded successfully", background: newBackground });
   } catch (err) {
     res.status(500).json({ success: false, message: "Error uploading background", error: err.message });
   }
@@ -104,19 +128,64 @@ router.put("/:id/active", verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
     
-    // Deactivate all
-    await BloodRequestBackground.updateMany({}, { isActive: false });
-    
-    // Activate target
-    const updated = await BloodRequestBackground.findByIdAndUpdate(id, { isActive: true }, { new: true });
-    
-    if (!updated) {
+    const bg = await BloodRequestBackground.findById(id);
+    if (!bg) {
       return res.status(404).json({ success: false, message: "Background not found" });
     }
 
-    res.json({ success: true, message: "Background set as active", background: updated });
+    // Deactivate other backgrounds for the same location
+    await BloodRequestBackground.updateMany({
+      country: bg.country || "",
+      state: bg.state || "",
+      city: bg.city || "",
+      isGlobal: bg.isGlobal
+    }, { isActive: false });
+    
+    // Activate target
+    bg.isActive = true;
+    await bg.save();
+
+    res.json({ success: true, message: "Background set as active", background: bg });
   } catch (err) {
     res.status(500).json({ success: false, message: "Error activating background", error: err.message });
+  }
+});
+
+/* ======================================================
+   ADMIN : UPDATE BACKGROUND DETAILS
+====================================================== */
+router.put("/:id", verifyToken, async (req, res) => {
+  try {
+    const { country, state, city, isGlobal, priority, isActive } = req.body;
+    const bg = await BloodRequestBackground.findById(req.params.id);
+    if (!bg) return res.status(404).json({ success: false, message: "Background not found" });
+
+    const isGlobalBool = isGlobal !== undefined ? (isGlobal === "true" || isGlobal === true) : bg.isGlobal;
+    
+    if (isActive === true || isActive === "true") {
+      // Deactivate other backgrounds for the same location
+      await BloodRequestBackground.updateMany({
+        _id: { $ne: req.params.id },
+        country: country !== undefined ? country : bg.country,
+        state: state !== undefined ? state : bg.state,
+        city: city !== undefined ? city : bg.city,
+        isGlobal: isGlobalBool
+      }, { isActive: false });
+      bg.isActive = true;
+    } else if (isActive === false || isActive === "false") {
+      bg.isActive = false;
+    }
+
+    if (country !== undefined) bg.country = country;
+    if (state !== undefined) bg.state = state;
+    if (city !== undefined) bg.city = city;
+    if (isGlobal !== undefined) bg.isGlobal = isGlobalBool;
+    if (priority !== undefined) bg.priority = parseInt(priority) || 0;
+
+    await bg.save();
+    res.json({ success: true, message: "Background details updated successfully", background: bg });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Error updating background", error: err.message });
   }
 });
 

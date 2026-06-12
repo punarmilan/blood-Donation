@@ -23,6 +23,12 @@ const impactGallerySchema = new mongoose.Schema(
     mediaUrl: { type: String, required: true },
     featured: { type: Boolean, default: false },
     displayOrder: { type: Number, default: 0 },
+    country: { type: String, trim: true, default: "" },
+    state: { type: String, trim: true, default: "" },
+    city: { type: String, trim: true, default: "" },
+    isGlobal: { type: Boolean, default: false },
+    isActive: { type: Boolean, default: true },
+    priority: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

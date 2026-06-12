@@ -6,7 +6,14 @@ const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => {
+    const saved = localStorage.getItem("user");
+    try {
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [loading, setLoading] = useState(true);
   
   // Development Mock: Store the mock confirmation state
@@ -22,11 +29,15 @@ export const AuthProvider = ({ children }) => {
           const data = await getMe(token);
           if (data && data.success) {
             setCurrentUser(data.user);
+            localStorage.setItem("user", JSON.stringify(data.user));
           }
         } catch (error) {
           console.error("Token verification failed", error);
           localStorage.removeItem("jwt_token");
+          localStorage.removeItem("user");
         }
+      } else {
+        localStorage.removeItem("user");
       }
       setLoading(false);
     };
@@ -65,8 +76,9 @@ export const AuthProvider = ({ children }) => {
       
       if (data && data.success) {
         localStorage.setItem("jwt_token", data.token);
+        localStorage.setItem("user", JSON.stringify(data.user));
         setCurrentUser(data.user);
-        return { success: true };
+        return { success: true, user: data.user };
       }
     } catch (error) {
       console.error("Error verifying Mock OTP", error);
@@ -79,7 +91,13 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem("jwt_token");
+    localStorage.removeItem("user");
     setCurrentUser(null);
+  };
+
+  const updateUser = (updatedUser) => {
+    setCurrentUser(updatedUser);
+    localStorage.setItem("user", JSON.stringify(updatedUser));
   };
 
   const value = {
@@ -89,6 +107,7 @@ export const AuthProvider = ({ children }) => {
     verifyOtpAndRegister,
     logout,
     setCurrentUser,
+    updateUser,
   };
 
   return (

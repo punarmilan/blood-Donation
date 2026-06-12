@@ -15,6 +15,12 @@ const newsSchema = new mongoose.Schema(
     published: { type: Boolean, default: false },
     publishedAt: { type: Date },
     author: { type: String, default: "Admin" },
+    country: { type: String, trim: true, default: "" },
+    state: { type: String, trim: true, default: "" },
+    city: { type: String, trim: true, default: "" },
+    isGlobal: { type: Boolean, default: false },
+    isActive: { type: Boolean, default: true },
+    priority: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

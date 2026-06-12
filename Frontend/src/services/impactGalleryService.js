@@ -1,7 +1,17 @@
 import axios from "axios";
 
 export const getGalleryImages = async () => {
-  const res = await axios.get("/api/impact-gallery");
+  const savedLoc = localStorage.getItem("detected_location");
+  let query = "";
+  if (savedLoc) {
+    try {
+      const { country, state, city } = JSON.parse(savedLoc);
+      query = `?country=${encodeURIComponent(country || "")}&state=${encodeURIComponent(state || "")}&city=${encodeURIComponent(city || "")}`;
+    } catch (e) {
+      console.error("Error parsing location for gallery", e);
+    }
+  }
+  const res = await axios.get(`/api/public/impact-gallery${query}`);
   return res.data;
 };
 

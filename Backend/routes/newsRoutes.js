@@ -45,7 +45,10 @@ router.post("/upload", upload.single("file"), (req, res) => {
 /* ── POST /api/news ───────────────── */
 router.post("/", async (req, res) => {
   try {
-    const { title, shortDescription, content, category, thumbnailUrl, published, author } = req.body;
+    const { 
+      title, shortDescription, content, category, thumbnailUrl, published, author,
+      country, state, city, isGlobal, isActive, priority
+    } = req.body;
     let slug = generateSlug(title);
 
     // Ensure slug is unique
@@ -57,6 +60,12 @@ router.post("/", async (req, res) => {
       thumbnailUrl: thumbnailUrl || "",
       published: published || false,
       author: author || "Admin",
+      country: country || "",
+      state: state || "",
+      city: city || "",
+      isGlobal: isGlobal === "true" || isGlobal === true,
+      isActive: isActive !== undefined ? (isActive === "true" || isActive === true) : true,
+      priority: parseInt(priority) || 0,
     });
 
     await article.save();
@@ -69,9 +78,15 @@ router.post("/", async (req, res) => {
 /* ── GET /api/news ────────────────── */
 router.get("/", async (req, res) => {
   try {
+    const { published, category, country, state, city, isGlobal, isActive } = req.query;
     const filter = {};
-    if (req.query.published === "true") filter.published = true;
-    if (req.query.category) filter.category = req.query.category;
+    if (published === "true") filter.published = true;
+    if (category) filter.category = category;
+    if (country) filter.country = new RegExp(country.trim(), "i");
+    if (state) filter.state = new RegExp(state.trim(), "i");
+    if (city) filter.city = new RegExp(city.trim(), "i");
+    if (isGlobal !== undefined) filter.isGlobal = isGlobal === "true";
+    if (isActive !== undefined) filter.isActive = isActive === "true";
 
     const articles = await News.find(filter).sort({ createdAt: -1 });
     res.json({ success: true, data: articles });

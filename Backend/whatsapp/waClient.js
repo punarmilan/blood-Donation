@@ -122,21 +122,33 @@ export const getOrganizerConnectionStatus = (organizerId) => {
 };
 
 export const sendMessage = async (organizerId, phone, message) => {
-  const sock = clients.get(organizerId);
-  if (!sock) {
-    console.error(`WhatsApp not connected for organizer ${organizerId}`);
+  let targetPhone = phone;
+  let targetMessage = message;
+  let socket = clients.get(organizerId);
+
+  // Fallback for 2-argument calls (e.g. system notifications)
+  if (message === undefined) {
+    targetPhone = organizerId;
+    targetMessage = phone;
+    if (clients.size > 0) {
+      socket = clients.values().next().value;
+    }
+  }
+
+  if (!socket) {
+    console.error(`WhatsApp client not connected. Unable to send message.`);
     return false;
   }
   try {
-    let jid = phone.toString().replace(/\D/g, '');
+    let jid = targetPhone.toString().replace(/\D/g, '');
     if (!jid.startsWith('91')) jid = '91' + jid;
     jid = jid + '@s.whatsapp.net';
 
-    await sock.sendMessage(jid, { text: message });
-    console.log(`Message sent to ${phone} from organizer ${organizerId}`);
+    await socket.sendMessage(jid, { text: targetMessage });
+    console.log(`Message sent successfully to ${targetPhone}`);
     return true;
   } catch (err) {
-    console.error(`Failed to send to ${phone} from organizer ${organizerId}:`, err.message);
+    console.error(`Failed to send message to ${targetPhone}:`, err.message);
     return false;
   }
 };

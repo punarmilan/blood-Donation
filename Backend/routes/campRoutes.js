@@ -9,7 +9,7 @@ import Organizer from "../models/Organizer.js";
 import User from "../models/User.js";
 import transporter from "../config/emailConfig.js";
 import { emailTemplates } from "../utils/emailTemplates.js";
-import { calculateBadge, getNextEligibleDate } from "../utils/badgeCalculator.js";
+import { calculateBadge, getNextEligibleDate, calculateDonationEligibility } from "../utils/badgeCalculator.js";
 import { verifyToken } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
@@ -80,9 +80,27 @@ router.get("/", async (_req, res) => {
   try {
     const camps = await Camp.find()
       .populate("organizer", "name mobile email")
+      .populate({
+        path: "enquiry",
+        populate: {
+          path: "assignedBloodBank",
+          select: "name managerName mobile"
+        }
+      })
       .sort({ date: -1 });
 
-    res.json(camps);
+    const processedCamps = camps.map(camp => {
+      const campObj = camp.toObject();
+      if (!campObj.hospitalName || campObj.hospitalName === "N/A") {
+        campObj.hospitalName = campObj.enquiry?.assignedBloodBank?.name || "N/A";
+      }
+      if (!campObj.proName || campObj.proName === "N/A") {
+        campObj.proName = campObj.enquiry?.assignedBloodBank?.managerName || "N/A";
+      }
+      return campObj;
+    });
+
+    res.json(processedCamps);
   } catch (err) {
     res.status(500).json({
       message: "Error fetching camps",
@@ -98,6 +116,13 @@ router.get("/with-count", verifyToken, async (_req, res) => {
   try {
     const camps = await Camp.find()
       .populate("organizer", "name mobile email")
+      .populate({
+        path: "enquiry",
+        populate: {
+          path: "assignedBloodBank",
+          select: "name managerName mobile"
+        }
+      })
       .sort({ date: 1 });
 
     const { default: CampRegistration } = await import("../models/CampRegistration.js");
@@ -109,7 +134,17 @@ router.get("/with-count", verifyToken, async (_req, res) => {
           $or: [{ camp: camp._id }, { campId: camp.campId }]
         });
         
-        return { ...camp.toObject(), donorCount: donorCount1 + donorCount2 };
+        const campObj = camp.toObject();
+        
+        // Fallback for hospitalName and proName if they are missing or N/A
+        if (!campObj.hospitalName || campObj.hospitalName === "N/A") {
+          campObj.hospitalName = campObj.enquiry?.assignedBloodBank?.name || "N/A";
+        }
+        if (!campObj.proName || campObj.proName === "N/A") {
+          campObj.proName = campObj.enquiry?.assignedBloodBank?.managerName || "N/A";
+        }
+        
+        return { ...campObj, donorCount: donorCount1 + donorCount2 };
       })
     );
 
@@ -131,9 +166,25 @@ router.get("/:id", verifyToken, async (req, res) => {
 
     let camp;
     if (mongoose.Types.ObjectId.isValid(id)) {
-      camp = await Camp.findById(id).populate("organizer", "name mobile email");
+      camp = await Camp.findById(id)
+        .populate("organizer", "name mobile email")
+        .populate({
+          path: "enquiry",
+          populate: {
+            path: "assignedBloodBank",
+            select: "name managerName mobile"
+          }
+        });
     } else {
-      camp = await Camp.findOne({ campId: id }).populate("organizer", "name mobile email");
+      camp = await Camp.findOne({ campId: id })
+        .populate("organizer", "name mobile email")
+        .populate({
+          path: "enquiry",
+          populate: {
+            path: "assignedBloodBank",
+            select: "name managerName mobile"
+          }
+        });
     }
 
     if (!camp) {
@@ -147,11 +198,105 @@ router.get("/:id", verifyToken, async (req, res) => {
     });
 
     const donorCount = donorCount1 + donorCount2;
+    
+    const campObj = camp.toObject();
+    
+    // Fallback for hospitalName and proName if they are missing or N/A
+    if (!campObj.hospitalName || campObj.hospitalName === "N/A") {
+      campObj.hospitalName = campObj.enquiry?.assignedBloodBank?.name || "N/A";
+    }
+    if (!campObj.proName || campObj.proName === "N/A") {
+      campObj.proName = campObj.enquiry?.assignedBloodBank?.managerName || "N/A";
+    }
 
-    res.json({ ...camp.toObject(), donorCount });
+    res.json({ ...campObj, donorCount });
   } catch (err) {
     res.status(500).json({
       message: "Error fetching camp",
+      error: err.message,
+    });
+  }
+});
+
+/* ======================================================
+   4.1 REGISTER LOGGED-IN DONOR FOR CAMP
+====================================================== */
+router.post("/:id/register", verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id || req.admin?.id;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    const camp = await Camp.findById(id);
+    if (!camp) {
+      return res.status(404).json({ message: "Camp not found" });
+    }
+
+    const user = await User.findById(userId);
+    if (user && user.nextEligibleDate) {
+      const campDate = new Date(camp.date);
+      const nextEligible = new Date(user.nextEligibleDate);
+      if (campDate < nextEligible) {
+        const formattedDate = nextEligible.toLocaleDateString('en-IN', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric'
+        });
+        return res.status(400).json({ 
+          message: `You are not eligible to register for this camp. You recently donated blood. Next eligible date: ${formattedDate}` 
+        });
+      }
+    }
+
+    // Check if donor is already registered
+    if (camp.registeredDonors && camp.registeredDonors.includes(userId)) {
+      return res.status(400).json({ message: "You are already registered for this camp" });
+    }
+
+    // Initialize arrays if they don't exist
+    if (!camp.registeredDonors) {
+      camp.registeredDonors = [];
+    }
+
+    // Check if max slots are reached
+    const maxSlots = camp.maxSlots || 200;
+    if (camp.registeredDonors.length >= maxSlots) {
+      return res.status(400).json({ message: "Camp slots are full" });
+    }
+
+    // Register donor
+    camp.registeredDonors.push(userId);
+    camp.registeredCount = camp.registeredDonors.length;
+    await camp.save();
+
+    // Fetch updated/populated camp to return
+    const updatedCamp = await Camp.findById(id)
+      .populate("organizer", "name mobile email")
+      .populate({
+        path: "enquiry",
+        populate: {
+          path: "assignedBloodBank",
+          select: "name managerName mobile"
+        }
+      });
+
+    const { default: CampRegistration } = await import("../models/CampRegistration.js");
+    const donorCount1 = await Donor.countDocuments({ camp: updatedCamp._id });
+    const donorCount2 = await CampRegistration.countDocuments({
+      $or: [{ camp: updatedCamp._id }, { campId: updatedCamp.campId }]
+    });
+    const donorCount = donorCount1 + donorCount2;
+
+    res.json({
+      message: "You have successfully registered for this camp.",
+      camp: { ...updatedCamp.toObject(), donorCount }
+    });
+  } catch (err) {
+    res.status(500).json({
+      message: "Error registering for camp",
       error: err.message,
     });
   }
@@ -344,12 +489,21 @@ router.patch("/:campId/complete", verifyToken, upload.array("photos", 10), async
         if (donor) {
           donor.totalDonations = (donor.totalDonations || 0) + 1;
           donor.badge = calculateBadge(donor.totalDonations);
-          const nextDate = getNextEligibleDate(new Date());
-          donor.nextEligibleDate = nextDate;
+
+          const donationDate = camp.date || new Date();
+          const donorGender = donor.gender || donor.health?.gender || "Male";
+          const eligibility = calculateDonationEligibility(donorGender, donationDate);
+
+          donor.lastDonationDate = donationDate;
+          donor.nextEligibleDonationDate = eligibility.nextEligibleDate ? new Date(eligibility.nextEligibleDate) : undefined;
+          donor.nextEligibleDate = eligibility.nextEligibleDate ? new Date(eligibility.nextEligibleDate) : undefined;
+          donor.donationEligibilityStatus = eligibility.status;
+          donor.donationGapDays = eligibility.gapDays;
+          donor.daysRemaining = eligibility.daysRemaining;
           
           donor.donationHistory.push({
             campId: camp._id,
-            date: new Date(),
+            date: donationDate,
             venue: camp.venue || camp.location
           });
           

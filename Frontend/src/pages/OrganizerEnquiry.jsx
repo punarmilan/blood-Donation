@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { submitOrganizerEnquiry } from "../services/enquiryService";
+import INDIAN_STATES from "../utils/indianStates";
 import { 
   User, Users, Phone, Mail, Building2, Calendar, Clock, MapPin, 
-  MessageSquare, ArrowRight, ArrowLeft, Droplet, Heart, CheckCircle, Lock 
+  MessageSquare, ArrowRight, ArrowLeft, Droplet, Heart, CheckCircle, Lock, Globe 
 } from "lucide-react";
 
 // Input class for the form fields
@@ -24,6 +25,10 @@ const OrganizerEnquiry = () => {
     preferredDate: "",
     preferredTime: "",
     area: "",
+    state: "Maharashtra",
+    city: "",
+    address: "",
+    pincode: "",
     expectedDonors: "50-100",
     venueAvailable: true,
     message: "",
@@ -293,10 +298,33 @@ const OrganizerEnquiry = () => {
                        <input className={inputCls} name="preferredTime" placeholder="e.g. 10:00 AM - 4:00 PM" value={form.preferredTime} onChange={handleChange} />
                        <label className="absolute -top-2.5 left-4 bg-[#09090b] px-1 text-[10px] font-bold text-zinc-500">Preferred Time (Optional)</label>
                      </div>
+                     <div className="relative mt-2">
+                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-red-500"><Globe className="h-4 w-4" /></div>
+                       <select className={`${inputCls} appearance-none cursor-pointer`} name="state" value={form.state} onChange={handleChange} required>
+                         <option value="">Select State *</option>
+                         {INDIAN_STATES.map(st => (
+                           <option key={st} value={st}>{st}</option>
+                         ))}
+                       </select>
+                       <label className="absolute -top-2.5 left-4 bg-[#09090b] px-1 text-[10px] font-bold text-zinc-500">State *</label>
+                     </div>
+                     <div className="relative mt-2">
+                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-red-500"><MapPin className="h-4 w-4" /></div>
+                       <input className={inputCls} name="city" placeholder="Enter City *" value={form.city} onChange={handleChange} required />
+                       <label className="absolute -top-2.5 left-4 bg-[#09090b] px-1 text-[10px] font-bold text-zinc-500">City *</label>
+                     </div>
                      <div className="relative md:col-span-2 mt-2">
                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-red-500"><MapPin className="h-4 w-4" /></div>
-                       <input className={inputCls} name="area" placeholder="Enter area or full address" value={form.area} onChange={handleChange} required />
-                       <label className="absolute -top-2.5 left-4 bg-[#09090b] px-1 text-[10px] font-bold text-zinc-500">Location / Area *</label>
+                       <input className={inputCls} name="address" placeholder="Enter full address *" value={form.address} onChange={(e) => {
+                         const val = e.target.value;
+                         setForm(prev => ({ ...prev, address: val, area: val }));
+                       }} required />
+                       <label className="absolute -top-2.5 left-4 bg-[#09090b] px-1 text-[10px] font-bold text-zinc-500">Area / Full Address *</label>
+                     </div>
+                     <div className="relative md:col-span-2 mt-2">
+                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-red-500"><MapPin className="h-4 w-4" /></div>
+                       <input className={inputCls} name="pincode" placeholder="Enter Pincode (Optional)" value={form.pincode} onChange={handleChange} />
+                       <label className="absolute -top-2.5 left-4 bg-[#09090b] px-1 text-[10px] font-bold text-zinc-500">Pincode</label>
                      </div>
                   </div>
 
@@ -357,14 +385,17 @@ const OrganizerEnquiry = () => {
                   
                   {/* Summary Block */}
                   <div className="bg-[#0a0a0a]/50 border border-zinc-800 rounded-2xl p-6 mb-6 text-sm">
-                     <div className="grid grid-cols-2 gap-y-4">
+                      <div className="grid grid-cols-2 gap-y-4">
                         <div><span className="text-zinc-500 text-xs block mb-1">Name</span><span className="text-white">{form.organizerName || '-'}</span></div>
                         <div><span className="text-zinc-500 text-xs block mb-1">Phone</span><span className="text-white">{form.phone || '-'}</span></div>
                         <div className="col-span-2"><span className="text-zinc-500 text-xs block mb-1">Email</span><span className="text-white">{form.email || '-'}</span></div>
                         <div><span className="text-zinc-500 text-xs block mb-1">Organization</span><span className="text-white">{form.organizationType} {form.organizationName ? `(${form.organizationName})` : ''}</span></div>
                         <div><span className="text-zinc-500 text-xs block mb-1">Date</span><span className="text-white">{form.preferredDate || '-'}</span></div>
-                        <div className="col-span-2"><span className="text-zinc-500 text-xs block mb-1">Location</span><span className="text-white">{form.area || '-'}</span></div>
-                     </div>
+                        <div><span className="text-zinc-500 text-xs block mb-1">State</span><span className="text-white">{form.state || '-'}</span></div>
+                        <div><span className="text-zinc-500 text-xs block mb-1">City</span><span className="text-white">{form.city || '-'}</span></div>
+                        <div className="col-span-2"><span className="text-zinc-500 text-xs block mb-1">Address</span><span className="text-white">{form.address || '-'}</span></div>
+                        {form.pincode && <div><span className="text-zinc-500 text-xs block mb-1">Pincode</span><span className="text-white">{form.pincode}</span></div>}
+                      </div>
                   </div>
 
                   <div className="relative mt-4">
@@ -422,6 +453,15 @@ const OrganizerEnquiry = () => {
                 </button>
              )}
            </div>
+           )}
+
+           {currentStep < 5 && (
+              <div className="mt-8 text-center text-zinc-500 text-sm">
+                Already registered?{" "}
+                <Link to="/organizer-login" className="text-red-500 hover:text-red-400 hover:underline font-bold transition-all ml-1">
+                  Organizer Login
+                </Link>
+              </div>
            )}
 
         </div>

@@ -15,6 +15,12 @@ const ImpactGalleryAdmin = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   
+  // Filtering States
+  const [filterCountry, setFilterCountry] = useState("");
+  const [filterState, setFilterState] = useState("");
+  const [filterCity, setFilterCity] = useState("");
+  const [filterGlobalOnly, setFilterGlobalOnly] = useState("all");
+
   // Form State
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
@@ -28,6 +34,12 @@ const ImpactGalleryAdmin = () => {
     mediaUrl: "",
     featured: false,
     displayOrder: 0,
+    country: "India",
+    state: "Maharashtra",
+    city: "",
+    isGlobal: false,
+    isActive: true,
+    priority: 0
   });
   const [uploading, setUploading] = useState(false);
 
@@ -53,7 +65,7 @@ const ImpactGalleryAdmin = () => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: type === "checkbox" ? checked : (name === "priority" ? Number(value) : value),
     }));
   };
 
@@ -114,6 +126,12 @@ const ImpactGalleryAdmin = () => {
       mediaUrl: item.mediaUrl || "",
       featured: item.featured || false,
       displayOrder: item.displayOrder || 0,
+      country: item.country || "India",
+      state: item.state || "Maharashtra",
+      city: item.city || "",
+      isGlobal: item.isGlobal || false,
+      isActive: item.isActive !== undefined ? item.isActive : true,
+      priority: item.priority || 0,
     });
     setShowForm(true);
   };
@@ -151,8 +169,23 @@ const ImpactGalleryAdmin = () => {
       mediaUrl: "",
       featured: false,
       displayOrder: 0,
+      country: "India",
+      state: "Maharashtra",
+      city: "",
+      isGlobal: false,
+      isActive: true,
+      priority: 0,
     });
   };
+
+  const filteredItems = items.filter((item) => {
+    if (filterGlobalOnly === "global" && !item.isGlobal) return false;
+    if (filterGlobalOnly === "local" && item.isGlobal) return false;
+    if (filterCountry && !item.country?.toLowerCase().includes(filterCountry.toLowerCase())) return false;
+    if (filterState && !item.state?.toLowerCase().includes(filterState.toLowerCase())) return false;
+    if (filterCity && !item.city?.toLowerCase().includes(filterCity.toLowerCase())) return false;
+    return true;
+  });
 
   return (
     <div className="chart-card">
@@ -207,6 +240,79 @@ const ImpactGalleryAdmin = () => {
                       </option>
                     ))}
                   </select>
+                </div>
+                <div className="col-md-4">
+                  <label className="form-label fw-bold">Country</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="country"
+                    placeholder="e.g. India"
+                    value={formData.country}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div className="col-md-4">
+                  <label className="form-label fw-bold">State</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="state"
+                    placeholder="e.g. Maharashtra"
+                    value={formData.state}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div className="col-md-4">
+                  <label className="form-label fw-bold">City</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="city"
+                    placeholder="e.g. Pune"
+                    value={formData.city}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div className="col-md-4">
+                  <label className="form-label fw-bold">Priority</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    name="priority"
+                    value={formData.priority}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div className="col-md-4 d-flex align-items-center mt-4">
+                  <div className="form-check form-switch">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      id="isGlobalSwitch"
+                      name="isGlobal"
+                      checked={formData.isGlobal}
+                      onChange={handleInputChange}
+                    />
+                    <label className="form-check-label fw-bold ms-2" htmlFor="isGlobalSwitch">
+                      Is Global?
+                    </label>
+                  </div>
+                </div>
+                <div className="col-md-4 d-flex align-items-center mt-4">
+                  <div className="form-check form-switch">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      id="isActiveSwitch"
+                      name="isActive"
+                      checked={formData.isActive}
+                      onChange={handleInputChange}
+                    />
+                    <label className="form-check-label fw-bold ms-2" htmlFor="isActiveSwitch">
+                      Is Active?
+                    </label>
+                  </div>
                 </div>
                 <div className="col-md-6">
                   <label className="form-label fw-bold">Location</label>
@@ -319,23 +425,70 @@ const ImpactGalleryAdmin = () => {
 
       {!showForm && (
         <div className="custom-table-container">
+          {/* Location Filters */}
+          <div className="row g-2 mb-4 p-3 border rounded bg-light">
+            <div className="col-md-3">
+              <label className="form-label text-muted small fw-bold">Filter Country</label>
+              <input
+                type="text"
+                className="form-control form-control-sm"
+                placeholder="e.g. India"
+                value={filterCountry}
+                onChange={(e) => setFilterCountry(e.target.value)}
+              />
+            </div>
+            <div className="col-md-3">
+              <label className="form-label text-muted small fw-bold">Filter State</label>
+              <input
+                type="text"
+                className="form-control form-control-sm"
+                placeholder="e.g. Maharashtra"
+                value={filterState}
+                onChange={(e) => setFilterState(e.target.value)}
+              />
+            </div>
+            <div className="col-md-3">
+              <label className="form-label text-muted small fw-bold">Filter City</label>
+              <input
+                type="text"
+                className="form-control form-control-sm"
+                placeholder="e.g. Pune"
+                value={filterCity}
+                onChange={(e) => setFilterCity(e.target.value)}
+              />
+            </div>
+            <div className="col-md-3">
+              <label className="form-label text-muted small fw-bold">Personalization Scope</label>
+              <select
+                className="form-select form-select-sm"
+                value={filterGlobalOnly}
+                onChange={(e) => setFilterGlobalOnly(e.target.value)}
+              >
+                <option value="all">All Content</option>
+                <option value="global">Global Only</option>
+                <option value="local">Personalized Only</option>
+              </select>
+            </div>
+          </div>
+
           {loading ? (
             <p className="text-center py-4 text-muted">Loading gallery...</p>
-          ) : items.length === 0 ? (
-            <p className="text-center py-4 text-muted">No media found. Add your first item.</p>
+          ) : filteredItems.length === 0 ? (
+            <p className="text-center py-4 text-muted">No media matching filters found.</p>
           ) : (
             <table className="premium-table">
               <thead>
                 <tr>
                   <th>Preview</th>
                   <th>Title & Category</th>
-                  <th>Type</th>
+                  <th>Target Location</th>
+                  <th>Priority</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => (
+                {filteredItems.map((item) => (
                   <tr key={item._id}>
                     <td>
                       {item.mediaType === "image" ? (
@@ -349,14 +502,26 @@ const ImpactGalleryAdmin = () => {
                       <span className="badge bg-light text-dark border">{item.category}</span>
                     </td>
                     <td>
-                      <span className="text-capitalize text-muted small fw-bold">{item.mediaType}</span>
+                      {item.isGlobal ? (
+                        <span className="badge bg-primary">Global</span>
+                      ) : (
+                        <span className="small text-muted font-monospace">
+                          📍 {item.city || "(Any City)"}, {item.state || "(Any State)"}, {item.country || "(Any Country)"}
+                        </span>
+                      )}
                     </td>
                     <td>
-                      {item.featured ? (
-                        <span className="badge bg-danger rounded-pill">Featured</span>
-                      ) : (
-                        <span className="badge bg-secondary rounded-pill">Standard</span>
-                      )}
+                      <span className="badge bg-light text-dark border">{item.priority}</span>
+                    </td>
+                    <td>
+                      <div className="d-flex flex-column gap-1">
+                        {item.featured && <span className="badge bg-danger rounded-pill">Featured</span>}
+                        {item.isActive ? (
+                          <span className="badge bg-success rounded-pill">Active</span>
+                        ) : (
+                          <span className="badge bg-secondary rounded-pill">Inactive</span>
+                        )}
+                      </div>
                     </td>
                     <td>
                       <div className="d-flex gap-2">

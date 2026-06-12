@@ -229,6 +229,7 @@
           justify-content: space-between;
           padding: 2rem;
           background-color: #ffffff;
+          
           border-bottom: 1px solid #e2e8f0;
         }
         .welcome-title {
@@ -237,10 +238,13 @@
           color: #0f172a;
           margin-bottom: 0.25rem;
           font-family: 'Cinzel', serif;
+          padding-left: 500px;
+      
         }
         .welcome-subtitle {
           font-size: 0.875rem;
           color: #64748b;
+          padding-left: 20px;
         }
         .date-picker-badge {
           display: flex;
