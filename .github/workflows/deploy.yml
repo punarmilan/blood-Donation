@@ -76,11 +76,11 @@ jobs:
             docker pull ${{ secrets.DOCKER_USERNAME }}/raktdaan-frontend:latest
             docker pull ${{ secrets.DOCKER_USERNAME }}/raktdaan-admin:latest
 
-            # Restart all services
-            docker compose up -d --no-build backend frontend admin nginx
+           # Restart all services with fresh images
+            docker compose up -d --force-recreate --no-build backend frontend admin
 
-            # Reload nginx
-            docker compose exec nginx nginx -s reload
+            # Reload gateway nginx
+            docker exec master-gateway nginx -s reload
 
             # Remove old images
             docker image prune -f
